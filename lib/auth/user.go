@@ -27,6 +27,7 @@ import (
 	"context"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/events"
 	"github.com/gravitational/teleport/lib/services"
 
@@ -34,10 +35,10 @@ import (
 )
 
 // CreateUser inserts a new user entry in a backend.
-func (s *Server) CreateUser(ctx context.Context, user services.User) error {
+func (s *Server) CreateUser(ctx context.Context, user types.User) error {
 	if user.GetCreatedBy().IsEmpty() {
-		user.SetCreatedBy(services.CreatedBy{
-			User: services.UserRef{Name: clientUsername(ctx)},
+		user.SetCreatedBy(types.CreatedBy{
+			User: types.UserRef{Name: clientUsername(ctx)},
 			Time: s.GetClock().Now().UTC(),
 		})
 	}
@@ -78,7 +79,7 @@ func (s *Server) CreateUser(ctx context.Context, user services.User) error {
 }
 
 // UpdateUser updates an existing user in a backend.
-func (s *Server) UpdateUser(ctx context.Context, user services.User) error {
+func (s *Server) UpdateUser(ctx context.Context, user types.User) error {
 	if err := s.Services.ServerIdentity.UpdateUser(ctx, user); err != nil {
 		return trace.Wrap(err)
 	}
@@ -112,7 +113,7 @@ func (s *Server) UpdateUser(ctx context.Context, user services.User) error {
 }
 
 // UpsertUser updates a user.
-func (s *Server) UpsertUser(user services.User) error {
+func (s *Server) UpsertUser(user types.User) error {
 	err := s.Services.ServerIdentity.UpsertUser(user)
 	if err != nil {
 		return trace.Wrap(err)

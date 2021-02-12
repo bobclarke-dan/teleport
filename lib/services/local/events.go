@@ -264,8 +264,8 @@ func (p *certAuthorityParser) parse(event backend.Event) (types.Resource, error)
 		return &types.ResourceHeader{
 			Kind:    types.KindCertAuthority,
 			SubKind: caType,
-			Version: services.V2,
-			Metadata: services.Metadata{
+			Version: types.V2,
+			Metadata: types.Metadata{
 				Name:      name,
 				Namespace: defaults.Namespace,
 			},
@@ -298,7 +298,7 @@ type provisionTokenParser struct {
 func (p *provisionTokenParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindToken, services.V2, 0)
+		return resourceHeader(event, types.KindToken, types.V2, 0)
 	case backend.OpPut:
 		token, err := services.UnmarshalProvisionToken(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -326,11 +326,11 @@ type staticTokensParser struct {
 func (p *staticTokensParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		h, err := resourceHeader(event, types.KindStaticTokens, services.V2, 0)
+		h, err := resourceHeader(event, types.KindStaticTokens, types.V2, 0)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		h.SetName(services.MetaNameStaticTokens)
+		h.SetName(types.MetaNameStaticTokens)
 		return h, nil
 	case backend.OpPut:
 		tokens, err := services.UnmarshalStaticTokens(event.Item.Value,
@@ -359,11 +359,11 @@ type clusterConfigParser struct {
 func (p *clusterConfigParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		h, err := resourceHeader(event, types.KindClusterConfig, services.V3, 0)
+		h, err := resourceHeader(event, types.KindClusterConfig, types.V3, 0)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		h.SetName(services.MetaNameClusterConfig)
+		h.SetName(types.MetaNameClusterConfig)
 		return h, nil
 	case backend.OpPut:
 		clusterConfig, err := services.UnmarshalClusterConfig(
@@ -394,11 +394,11 @@ type clusterNameParser struct {
 func (p *clusterNameParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		h, err := resourceHeader(event, types.KindClusterName, services.V2, 0)
+		h, err := resourceHeader(event, types.KindClusterName, types.V2, 0)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		h.SetName(services.MetaNameClusterName)
+		h.SetName(types.MetaNameClusterName)
 		return h, nil
 	case backend.OpPut:
 		clusterName, err := services.UnmarshalClusterName(event.Item.Value,
@@ -439,7 +439,7 @@ func (p *namespaceParser) match(key []byte) bool {
 func (p *namespaceParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindNamespace, services.V2, 1)
+		return resourceHeader(event, types.KindNamespace, types.V2, 1)
 	case backend.OpPut:
 		namespace, err := services.UnmarshalNamespace(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -467,7 +467,7 @@ type roleParser struct {
 func (p *roleParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindRole, services.V3, 1)
+		return resourceHeader(event, types.KindRole, types.V3, 1)
 	case backend.OpPut:
 		resource, err := services.UnmarshalRole(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -517,7 +517,7 @@ func (p *accessRequestParser) match(key []byte) bool {
 func (p *accessRequestParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindAccessRequest, services.V3, 1)
+		return resourceHeader(event, types.KindAccessRequest, types.V3, 1)
 	case backend.OpPut:
 		req, err := itemToAccessRequest(event.Item)
 		if err != nil {
@@ -553,7 +553,7 @@ func (p *userParser) match(key []byte) bool {
 func (p *userParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindUser, services.V2, 1)
+		return resourceHeader(event, types.KindUser, types.V2, 1)
 	case backend.OpPut:
 		resource, err := services.UnmarshalUser(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -630,8 +630,8 @@ func (p *tunnelConnectionParser) parse(event backend.Event) (types.Resource, err
 		return &types.ResourceHeader{
 			Kind:    types.KindTunnelConnection,
 			SubKind: clusterName,
-			Version: services.V2,
-			Metadata: services.Metadata{
+			Version: types.V2,
+			Metadata: types.Metadata{
 				Name:      name,
 				Namespace: defaults.Namespace,
 			},
@@ -663,7 +663,7 @@ type reverseTunnelParser struct {
 func (p *reverseTunnelParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindReverseTunnel, services.V2, 0)
+		return resourceHeader(event, types.KindReverseTunnel, types.V2, 0)
 	case backend.OpPut:
 		resource, err := services.UnmarshalReverseTunnel(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -698,7 +698,7 @@ func newAppSessionParser() *webSessionParser {
 		hdr: types.ResourceHeader{
 			Kind:    types.KindWebSession,
 			SubKind: types.KindAppSession,
-			Version: services.V2,
+			Version: types.V2,
 		},
 	}
 }
@@ -709,7 +709,7 @@ func newWebSessionParser() *webSessionParser {
 		hdr: types.ResourceHeader{
 			Kind:    types.KindWebSession,
 			SubKind: types.KindWebSession,
-			Version: services.V2,
+			Version: types.V2,
 		},
 	}
 }
@@ -750,7 +750,7 @@ type webTokenParser struct {
 func (p *webTokenParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindWebToken, services.V1, 0)
+		return resourceHeader(event, types.KindWebToken, types.V1, 0)
 	case backend.OpPut:
 		resource, err := services.UnmarshalWebToken(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -799,7 +799,7 @@ func (p *databaseServerParser) parse(event backend.Event) (types.Resource, error
 		return &types.DatabaseServerV3{
 			Kind:    types.KindDatabaseServer,
 			Version: types.V3,
-			Metadata: services.Metadata{
+			Metadata: types.Metadata{
 				Name:        name,
 				Namespace:   defaults.Namespace,
 				Description: hostID, // Pass host ID via description field for the cache.
@@ -819,7 +819,7 @@ func (p *databaseServerParser) parse(event backend.Event) (types.Resource, error
 func parseServer(event backend.Event, kind string) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, kind, services.V2, 0)
+		return resourceHeader(event, kind, types.V2, 0)
 	case backend.OpPut:
 		resource, err := services.UnmarshalServer(event.Item.Value,
 			kind,
@@ -857,7 +857,7 @@ func (p *remoteClusterParser) match(key []byte) bool {
 func (p *remoteClusterParser) parse(event backend.Event) (types.Resource, error) {
 	switch event.Type {
 	case backend.OpDelete:
-		return resourceHeader(event, types.KindRemoteCluster, services.V3, 0)
+		return resourceHeader(event, types.KindRemoteCluster, types.V3, 0)
 	case backend.OpPut:
 		resource, err := services.UnmarshalRemoteCluster(event.Item.Value,
 			services.WithResourceID(event.Item.ID),
@@ -880,7 +880,7 @@ func resourceHeader(event backend.Event, kind, version string, offset int) (type
 	return &types.ResourceHeader{
 		Kind:    kind,
 		Version: version,
-		Metadata: services.Metadata{
+		Metadata: types.Metadata{
 			Name:      string(name),
 			Namespace: defaults.Namespace,
 		},
@@ -896,7 +896,7 @@ func resourceHeaderWithTemplate(event backend.Event, hdr types.ResourceHeader, o
 		Kind:    hdr.Kind,
 		SubKind: hdr.SubKind,
 		Version: hdr.Version,
-		Metadata: services.Metadata{
+		Metadata: types.Metadata{
 			Name:      string(name),
 			Namespace: defaults.Namespace,
 		},

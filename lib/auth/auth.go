@@ -328,13 +328,13 @@ func (a *Server) SetAuditLog(auditLog events.IAuditLog) {
 }
 
 // GetClusterConfig gets ClusterConfig from the backend.
-func (a *Server) GetClusterConfig(opts ...services.MarshalOption) (services.ClusterConfig, error) {
+func (a *Server) GetClusterConfig(opts ...services.MarshalOption) (types.ClusterConfig, error) {
 	return a.GetCache().GetClusterConfig(opts...)
 }
 
 // GetClusterName returns the domain name that identifies this authority server.
 // Also known as "cluster name"
-func (a *Server) GetClusterName(opts ...services.MarshalOption) (services.ClusterName, error) {
+func (a *Server) GetClusterName(opts ...services.MarshalOption) (types.ClusterName, error) {
 	return a.GetCache().GetClusterName(opts...)
 }
 
@@ -361,8 +361,8 @@ func (a *Server) GetClusterCACert() (*LocalCAResponse, error) {
 		return nil, trace.Wrap(err)
 	}
 	// Extract the TLS CA for this cluster.
-	hostCA, err := a.GetCache().GetCertAuthority(services.CertAuthID{
-		Type:       services.HostCA,
+	hostCA, err := a.GetCache().GetCertAuthority(types.CertAuthID{
+		Type:       types.HostCA,
 		DomainName: clusterName.GetClusterName(),
 	}, false)
 	if err != nil {
@@ -393,8 +393,8 @@ func (a *Server) GenerateHostCert(hostPublicKey []byte, hostID, nodeName string,
 	}
 
 	// get the certificate authority that will be signing the public key of the host
-	ca, err := a.Services.ServerTrust.GetCertAuthority(services.CertAuthID{
-		Type:       services.HostCA,
+	ca, err := a.Services.ServerTrust.GetCertAuthority(types.CertAuthID{
+		Type:       types.HostCA,
 		DomainName: domainName,
 	}, true)
 	if err != nil {
@@ -431,7 +431,7 @@ type certs struct {
 
 type certRequest struct {
 	// user is a user to generate certificate for
-	user services.User
+	user types.User
 	// checker is used to perform RBAC checks.
 	checker services.AccessChecker
 	// ttl is Duration of the certificate
@@ -649,8 +649,8 @@ func (a *Server) generateUserCert(req certRequest) (*certs, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	ca, err := a.Services.ServerTrust.GetCertAuthority(services.CertAuthID{
-		Type:       services.UserCA,
+	ca, err := a.Services.ServerTrust.GetCertAuthority(types.CertAuthID{
+		Type:       types.UserCA,
 		DomainName: clusterName,
 	}, true)
 	if err != nil {
@@ -824,7 +824,7 @@ func (a *Server) WithUserLock(username string, authenticateFn func() error) erro
 
 // PreAuthenticatedSignIn is for 2-way authentication methods like U2F where the password is
 // already checked before issuing the second factor challenge
-func (a *Server) PreAuthenticatedSignIn(user string, identity tlsca.Identity) (services.WebSession, error) {
+func (a *Server) PreAuthenticatedSignIn(user string, identity tlsca.Identity) (types.WebSession, error) {
 	roles, traits, err := services.ExtractFromIdentity(a, identity)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -919,7 +919,7 @@ func (a *Server) CheckU2FSignResponse(ctx context.Context, user string, response
 // ExtendWebSession creates a new web session for a user based on a valid previous session.
 // Additional roles are appended to initial roles if there is an approved access request.
 // The new session expiration time will not exceed the expiration time of the old session.
-func (a *Server) ExtendWebSession(user, prevSessionID, accessRequestID string, identity tlsca.Identity) (services.WebSession, error) {
+func (a *Server) ExtendWebSession(user, prevSessionID, accessRequestID string, identity tlsca.Identity) (types.WebSession, error) {
 	prevSession, err := a.Services.GetWebSession(context.TODO(), types.GetWebSessionRequest{
 		User:      user,
 		SessionID: prevSessionID,
@@ -979,7 +979,7 @@ func (a *Server) ExtendWebSession(user, prevSessionID, accessRequestID string, i
 }
 
 func (a *Server) getRolesAndExpiryFromAccessRequest(user, accessRequestID string) ([]string, time.Time, error) {
-	reqFilter := services.AccessRequestFilter{
+	reqFilter := types.AccessRequestFilter{
 		User: user,
 		ID:   accessRequestID,
 	}
@@ -1016,7 +1016,7 @@ func (a *Server) getRolesAndExpiryFromAccessRequest(user, accessRequestID string
 
 // CreateWebSession creates a new web session for user without any
 // checks, is used by admins
-func (a *Server) CreateWebSession(user string) (services.WebSession, error) {
+func (a *Server) CreateWebSession(user string) (types.WebSession, error) {
 	u, err := a.GetUser(user, false)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -1074,7 +1074,7 @@ func (a *Server) GenerateToken(ctx context.Context, req GenerateTokenRequest) (s
 	if err := req.CheckAndSetDefaults(); err != nil {
 		return "", trace.Wrap(err)
 	}
-	token, err := services.NewProvisionToken(req.Token, req.Roles, a.clock.Now().UTC().Add(req.TTL))
+	token, err := types.NewProvisionToken(req.Token, req.Roles, a.clock.Now().UTC().Add(req.TTL))
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -1151,7 +1151,7 @@ type GenerateServerKeysRequest struct {
 	// expected by client of the certificate authority backends, so auth servers
 	// can avoid situation when clients request certs assuming one
 	// state, and auth servers issue another
-	Rotation *services.Rotation `json:"rotation,omitempty"`
+	Rotation *types.Rotation `json:"rotation,omitempty"`
 	// NoCache is argument that only local callers can supply to bypass cache
 	NoCache bool `json:"-"`
 }
@@ -1240,8 +1240,8 @@ func (a *Server) GenerateServerKeys(req GenerateServerKeysRequest) (*PackedKeys,
 	if req.NoCache {
 		client = &a.Services
 	}
-	ca, err := client.GetCertAuthority(services.CertAuthID{
-		Type:       services.HostCA,
+	ca, err := client.GetCertAuthority(types.CertAuthID{
+		Type:       types.HostCA,
 		DomainName: clusterName.GetClusterName(),
 	}, true)
 	if err != nil {
@@ -1254,8 +1254,8 @@ func (a *Server) GenerateServerKeys(req GenerateServerKeysRequest) (*PackedKeys,
 	// to the backend, which is a fine tradeoff
 	if !req.NoCache && req.Rotation != nil && !req.Rotation.Matches(ca.GetRotation()) {
 		log.Debugf("Client sent rotation state %v, cache state is %v, using state from the DB.", req.Rotation, ca.GetRotation())
-		ca, err = a.GetCertAuthority(services.CertAuthID{
-			Type:       services.HostCA,
+		ca, err = a.GetCertAuthority(types.CertAuthID{
+			Type:       types.HostCA,
 			DomainName: clusterName.GetClusterName(),
 		}, true)
 		if err != nil {
@@ -1363,7 +1363,7 @@ func (a *Server) ValidateToken(token string) (teleport.Roles, map[string]string,
 
 // checkTokenTTL checks if the token is still valid. If it is not, the token
 // is removed from the backend and returns false. Otherwise returns true.
-func (a *Server) checkTokenTTL(tok services.ProvisionToken) bool {
+func (a *Server) checkTokenTTL(tok types.ProvisionToken) bool {
 	now := a.clock.Now().UTC()
 	if tok.Expiry().Before(now) {
 		err := a.DeleteToken(tok.GetName())
@@ -1503,7 +1503,7 @@ func (a *Server) DeleteToken(token string) (err error) {
 
 // GetTokens returns all tokens (machine provisioning ones and user invitation tokens). Machine
 // tokens usually have "node roles", like auth,proxy,node and user invitation tokens have 'signup' role
-func (a *Server) GetTokens(opts ...services.MarshalOption) (tokens []services.ProvisionToken, err error) {
+func (a *Server) GetTokens(opts ...services.MarshalOption) (tokens []types.ProvisionToken, err error) {
 	// get node tokens:
 	tokens, err = a.Services.ServerProvisioner.GetTokens()
 	if err != nil {
@@ -1525,7 +1525,7 @@ func (a *Server) GetTokens(opts ...services.MarshalOption) (tokens []services.Pr
 	// convert reset password tokens to machine tokens:
 	for _, t := range resetPasswordTokens {
 		roles := teleport.Roles{teleport.RoleSignup}
-		tok, err := services.NewProvisionToken(t.GetName(), roles, t.Expiry())
+		tok, err := types.NewProvisionToken(t.GetName(), roles, t.Expiry())
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -1535,7 +1535,7 @@ func (a *Server) GetTokens(opts ...services.MarshalOption) (tokens []services.Pr
 }
 
 // NewWebSession creates and returns a new web session for the specified request
-func (a *Server) NewWebSession(req types.NewWebSessionRequest) (services.WebSession, error) {
+func (a *Server) NewWebSession(req types.NewWebSessionRequest) (types.WebSession, error) {
 	user, err := a.GetUser(req.User, false)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -1571,7 +1571,7 @@ func (a *Server) NewWebSession(req types.NewWebSessionRequest) (services.WebSess
 		return nil, trace.Wrap(err)
 	}
 	bearerTokenTTL := utils.MinTTL(sessionTTL, BearerTokenTTL)
-	return services.NewWebSession(token, services.KindWebSession, services.KindWebSession, services.WebSessionSpecV2{
+	return types.NewWebSession(token, types.KindWebSession, types.KindWebSession, types.WebSessionSpecV2{
 		User:               req.User,
 		Priv:               priv,
 		Pub:                certs.ssh,
@@ -1585,7 +1585,7 @@ func (a *Server) NewWebSession(req types.NewWebSessionRequest) (services.WebSess
 // GetWebSessionInfo returns the web session specified with sessionID for the given user.
 // The session is stripped of any authentication details.
 // Implements auth.WebUIService
-func (a *Server) GetWebSessionInfo(ctx context.Context, user, sessionID string) (services.WebSession, error) {
+func (a *Server) GetWebSessionInfo(ctx context.Context, user, sessionID string) (types.WebSession, error) {
 	sess, err := a.Services.ServerIdentity.WebSessions().Get(ctx, types.GetWebSessionRequest{User: user, SessionID: sessionID})
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -1610,7 +1610,7 @@ func (a *Server) DeleteNamespace(namespace string) error {
 // NewWatcher returns a new event watcher. In case of an auth server
 // this watcher will return events as seen by the auth server's
 // in memory cache, not the backend.
-func (a *Server) NewWatcher(ctx context.Context, watch services.Watch) (services.Watcher, error) {
+func (a *Server) NewWatcher(ctx context.Context, watch types.Watch) (types.Watcher, error) {
 	return a.GetCache().NewWatcher(ctx, watch)
 }
 
@@ -1633,7 +1633,7 @@ func (a *Server) DeleteRole(ctx context.Context, name string) error {
 	}
 	// check if it's used by some external cert authorities, e.g.
 	// cert authorities related to external cluster
-	cas, err := a.Services.ServerTrust.GetCertAuthorities(services.UserCA, false)
+	cas, err := a.Services.ServerTrust.GetCertAuthorities(types.UserCA, false)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -1672,7 +1672,7 @@ func (a *Server) DeleteRole(ctx context.Context, name string) error {
 }
 
 // UpsertRole creates or updates role.
-func (a *Server) upsertRole(ctx context.Context, role services.Role) error {
+func (a *Server) upsertRole(ctx context.Context, role types.Role) error {
 	if err := a.Services.UpsertRole(ctx, role); err != nil {
 		return trace.Wrap(err)
 	}
@@ -1695,7 +1695,7 @@ func (a *Server) upsertRole(ctx context.Context, role services.Role) error {
 	return nil
 }
 
-func (a *Server) CreateAccessRequest(ctx context.Context, req services.AccessRequest) error {
+func (a *Server) CreateAccessRequest(ctx context.Context, req types.AccessRequest) error {
 	err := services.ValidateAccessRequestForUser(a, req,
 		// if request is in state pending, role expansion must be applied
 		services.ExpandRoles(req.GetState().IsPending()),
@@ -1745,7 +1745,7 @@ func (a *Server) CreateAccessRequest(ctx context.Context, req services.AccessReq
 	return trace.Wrap(err)
 }
 
-func (a *Server) SetAccessRequestState(ctx context.Context, params services.AccessRequestUpdate) error {
+func (a *Server) SetAccessRequestState(ctx context.Context, params types.AccessRequestUpdate) error {
 	if err := a.Services.DynamicAccess.SetAccessRequestState(ctx, params); err != nil {
 		return trace.Wrap(err)
 	}
@@ -1782,7 +1782,7 @@ func (a *Server) SetAccessRequestState(ctx context.Context, params services.Acce
 	return trace.Wrap(err)
 }
 
-func (a *Server) GetAccessCapabilities(ctx context.Context, req services.AccessCapabilitiesRequest) (*services.AccessCapabilities, error) {
+func (a *Server) GetAccessCapabilities(ctx context.Context, req types.AccessCapabilitiesRequest) (*types.AccessCapabilities, error) {
 	caps, err := services.CalculateAccessCapabilities(ctx, a, req)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -1793,7 +1793,7 @@ func (a *Server) GetAccessCapabilities(ctx context.Context, req services.AccessC
 // calculateMaxAccessTTL determines the maximum allowable TTL for a given access request
 // based on the MaxSessionTTLs of the roles being requested (a access request's life cannot
 // exceed the smallest allowable MaxSessionTTL value of the roles that it requests).
-func (a *Server) calculateMaxAccessTTL(req services.AccessRequest) (time.Duration, error) {
+func (a *Server) calculateMaxAccessTTL(req types.AccessRequest) (time.Duration, error) {
 	minTTL := defaults.MaxAccessDuration
 	for _, roleName := range req.GetRoles() {
 		role, err := a.GetRole(roleName)
@@ -1815,7 +1815,7 @@ func (a *Server) NewKeepAliver(ctx context.Context) (services.KeepAliver, error)
 		a:           a,
 		ctx:         cancelCtx,
 		cancel:      cancel,
-		keepAlivesC: make(chan services.KeepAlive),
+		keepAlivesC: make(chan types.KeepAlive),
 	}
 	go k.forwardKeepAlives()
 	return k, nil
@@ -1823,82 +1823,82 @@ func (a *Server) NewKeepAliver(ctx context.Context) (services.KeepAliver, error)
 
 // GetCertAuthority returns certificate authority by given id. Parameter loadSigningKeys
 // controls if signing keys are loaded
-func (a *Server) GetCertAuthority(id services.CertAuthID, loadSigningKeys bool, opts ...services.MarshalOption) (services.CertAuthority, error) {
+func (a *Server) GetCertAuthority(id types.CertAuthID, loadSigningKeys bool, opts ...services.MarshalOption) (types.CertAuthority, error) {
 	return a.GetCache().GetCertAuthority(id, loadSigningKeys, opts...)
 }
 
 // GetCertAuthorities returns a list of authorities of a given type
 // loadSigningKeys controls whether signing keys should be loaded or not
-func (a *Server) GetCertAuthorities(caType services.CertAuthType, loadSigningKeys bool, opts ...services.MarshalOption) ([]services.CertAuthority, error) {
+func (a *Server) GetCertAuthorities(caType types.CertAuthType, loadSigningKeys bool, opts ...services.MarshalOption) ([]types.CertAuthority, error) {
 	return a.GetCache().GetCertAuthorities(caType, loadSigningKeys, opts...)
 }
 
 // GetStaticTokens gets the list of static tokens used to provision nodes.
-func (a *Server) GetStaticTokens() (services.StaticTokens, error) {
+func (a *Server) GetStaticTokens() (types.StaticTokens, error) {
 	return a.GetCache().GetStaticTokens()
 }
 
 // GetToken finds and returns token by ID
-func (a *Server) GetToken(token string) (services.ProvisionToken, error) {
+func (a *Server) GetToken(token string) (types.ProvisionToken, error) {
 	return a.GetCache().GetToken(token)
 }
 
 // GetRoles is a part of auth.AccessPoint implementation
-func (a *Server) GetRoles() ([]services.Role, error) {
+func (a *Server) GetRoles() ([]types.Role, error) {
 	return a.GetCache().GetRoles()
 }
 
 // GetRole is a part of auth.AccessPoint implementation
-func (a *Server) GetRole(name string) (services.Role, error) {
+func (a *Server) GetRole(name string) (types.Role, error) {
 	return a.GetCache().GetRole(name)
 }
 
 // GetNamespace returns namespace
-func (a *Server) GetNamespace(name string) (*services.Namespace, error) {
+func (a *Server) GetNamespace(name string) (*types.Namespace, error) {
 	return a.GetCache().GetNamespace(name)
 }
 
 // GetNamespaces is a part of auth.AccessPoint implementation
-func (a *Server) GetNamespaces() ([]services.Namespace, error) {
+func (a *Server) GetNamespaces() ([]types.Namespace, error) {
 	return a.GetCache().GetNamespaces()
 }
 
 // GetNodes is a part of auth.AccessPoint implementation
-func (a *Server) GetNodes(namespace string, opts ...services.MarshalOption) ([]services.Server, error) {
+func (a *Server) GetNodes(namespace string, opts ...services.MarshalOption) ([]types.Server, error) {
 	return a.GetCache().GetNodes(namespace, opts...)
 }
 
 // GetReverseTunnels is a part of auth.AccessPoint implementation
-func (a *Server) GetReverseTunnels(opts ...services.MarshalOption) ([]services.ReverseTunnel, error) {
+func (a *Server) GetReverseTunnels(opts ...services.MarshalOption) ([]types.ReverseTunnel, error) {
 	return a.GetCache().GetReverseTunnels(opts...)
 }
 
 // GetProxies is a part of auth.AccessPoint implementation
-func (a *Server) GetProxies() ([]services.Server, error) {
+func (a *Server) GetProxies() ([]types.Server, error) {
 	return a.GetCache().GetProxies()
 }
 
 // GetUser is a part of auth.AccessPoint implementation.
-func (a *Server) GetUser(name string, withSecrets bool) (user services.User, err error) {
+func (a *Server) GetUser(name string, withSecrets bool) (user types.User, err error) {
 	return a.GetCache().GetUser(name, withSecrets)
 }
 
 // GetUsers is a part of auth.AccessPoint implementation
-func (a *Server) GetUsers(withSecrets bool) (users []services.User, err error) {
+func (a *Server) GetUsers(withSecrets bool) (users []types.User, err error) {
 	return a.GetCache().GetUsers(withSecrets)
 }
 
 // GetTunnelConnections is a part of auth.AccessPoint implementation
 // GetTunnelConnections are not using recent cache as they are designed
 // to be called periodically and always return fresh data
-func (a *Server) GetTunnelConnections(clusterName string, opts ...services.MarshalOption) ([]services.TunnelConnection, error) {
+func (a *Server) GetTunnelConnections(clusterName string, opts ...services.MarshalOption) ([]types.TunnelConnection, error) {
 	return a.GetCache().GetTunnelConnections(clusterName, opts...)
 }
 
 // GetAllTunnelConnections is a part of auth.AccessPoint implementation
 // GetAllTunnelConnections are not using recent cache, as they are designed
 // to be called periodically and always return fresh data
-func (a *Server) GetAllTunnelConnections(opts ...services.MarshalOption) (conns []services.TunnelConnection, err error) {
+func (a *Server) GetAllTunnelConnections(opts ...services.MarshalOption) (conns []types.TunnelConnection, err error) {
 	return a.GetCache().GetAllTunnelConnections(opts...)
 }
 
@@ -1940,12 +1940,12 @@ func (a *Server) modeStreamer() (events.Streamer, error) {
 }
 
 // GetAppServers is a part of the auth.AccessPoint implementation.
-func (a *Server) GetAppServers(ctx context.Context, namespace string, opts ...services.MarshalOption) ([]services.Server, error) {
+func (a *Server) GetAppServers(ctx context.Context, namespace string, opts ...services.MarshalOption) ([]types.Server, error) {
 	return a.GetCache().GetAppServers(ctx, namespace, opts...)
 }
 
 // GetAppSession is a part of the auth.AccessPoint implementation.
-func (a *Server) GetAppSession(ctx context.Context, req services.GetAppSessionRequest) (services.WebSession, error) {
+func (a *Server) GetAppSession(ctx context.Context, req types.GetAppSessionRequest) (types.WebSession, error) {
 	return a.GetCache().GetAppSession(ctx, req)
 }
 
@@ -2076,7 +2076,7 @@ func WithClock(clock clockwork.Clock) func(*Server) {
 	}
 }
 
-func (a *Server) upsertWebSession(ctx context.Context, user string, session services.WebSession) error {
+func (a *Server) upsertWebSession(ctx context.Context, user string, session types.WebSession) error {
 	if err := a.Services.WebSessions().Upsert(ctx, session); err != nil {
 		return trace.Wrap(err)
 	}
@@ -2096,12 +2096,12 @@ type authKeepAliver struct {
 	a           *Server
 	ctx         context.Context
 	cancel      context.CancelFunc
-	keepAlivesC chan services.KeepAlive
+	keepAlivesC chan types.KeepAlive
 	err         error
 }
 
 // KeepAlives returns a channel accepting keep alive requests
-func (k *authKeepAliver) KeepAlives() chan<- services.KeepAlive {
+func (k *authKeepAliver) KeepAlives() chan<- types.KeepAlive {
 	return k.keepAlivesC
 }
 
@@ -2171,7 +2171,7 @@ type oidcClient struct {
 // samlProvider is internal structure that stores SAML client and its config
 type samlProvider struct {
 	provider  *saml2.SAMLServiceProvider
-	connector services.SAMLConnector
+	connector types.SAMLConnector
 }
 
 // githubClient is internal structure that stores Github OAuth 2client and its config

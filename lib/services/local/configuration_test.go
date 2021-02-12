@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/backend/lite"
 	"github.com/gravitational/teleport/lib/fixtures"
@@ -78,33 +79,33 @@ func (s *ClusterConfigurationSuite) TestStaticTokens(c *check.C) {
 
 func (s *ClusterConfigurationSuite) TestSessionRecording(c *check.C) {
 	// don't allow invalid session recording values
-	_, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
+	_, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
 		SessionRecording: "foo",
 	})
 	c.Assert(err, check.NotNil)
 
 	// default is to record at the node
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{})
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{})
 	c.Assert(err, check.IsNil)
 	recordingType := clusterConfig.GetSessionRecording()
-	c.Assert(recordingType, check.Equals, services.RecordAtNode)
+	c.Assert(recordingType, check.Equals, types.RecordAtNode)
 
 	// update sessions to be recorded at the proxy and check again
-	clusterConfig.SetSessionRecording(services.RecordAtProxy)
+	clusterConfig.SetSessionRecording(types.RecordAtProxy)
 	recordingType = clusterConfig.GetSessionRecording()
-	c.Assert(recordingType, check.Equals, services.RecordAtProxy)
+	c.Assert(recordingType, check.Equals, types.RecordAtProxy)
 }
 
 func (s *ClusterConfigurationSuite) TestAuditConfig(c *check.C) {
 	// default is to record at the node
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{})
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{})
 	c.Assert(err, check.IsNil)
 
 	cfg := clusterConfig.GetAuditConfig()
-	c.Assert(cfg, check.DeepEquals, services.AuditConfig{})
+	c.Assert(cfg, check.DeepEquals, types.AuditConfig{})
 
 	// update sessions to be recorded at the proxy and check again
-	in := services.AuditConfig{
+	in := types.AuditConfig{
 		Region:           "us-west-1",
 		Type:             "dynamodb",
 		AuditSessionsURI: "file:///home/log",
@@ -142,7 +143,7 @@ audit_events_uri: 'dynamodb://audit_table_name'
 
 	out2, err = services.AuditConfigFromObject(data)
 	c.Assert(err, check.IsNil)
-	fixtures.DeepCompare(c, *out2, services.AuditConfig{
+	fixtures.DeepCompare(c, *out2, types.AuditConfig{
 		Region:           "us-west-1",
 		Type:             "dir",
 		AuditSessionsURI: "file:///home/log",
@@ -152,12 +153,12 @@ audit_events_uri: 'dynamodb://audit_table_name'
 
 func (s *ClusterConfigurationSuite) TestClusterConfigMarshal(c *check.C) {
 	// signle audit_events uri value
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		ClientIdleTimeout:     services.NewDuration(17 * time.Second),
-		DisconnectExpiredCert: services.NewBool(true),
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		ClientIdleTimeout:     types.NewDuration(17 * time.Second),
+		DisconnectExpiredCert: types.NewBool(true),
 		ClusterID:             "27",
-		SessionRecording:      services.RecordAtProxy,
-		Audit: services.AuditConfig{
+		SessionRecording:      types.RecordAtProxy,
+		Audit: types.AuditConfig{
 			Region:           "us-west-1",
 			Type:             "dynamodb",
 			AuditSessionsURI: "file:///home/log",
@@ -175,12 +176,12 @@ func (s *ClusterConfigurationSuite) TestClusterConfigMarshal(c *check.C) {
 	fixtures.DeepCompare(c, clusterConfig, out)
 
 	// multiple events uri values
-	clusterConfig, err = services.NewClusterConfig(services.ClusterConfigSpecV3{
-		ClientIdleTimeout:     services.NewDuration(17 * time.Second),
-		DisconnectExpiredCert: services.NewBool(true),
+	clusterConfig, err = types.NewClusterConfig(types.ClusterConfigSpecV3{
+		ClientIdleTimeout:     types.NewDuration(17 * time.Second),
+		DisconnectExpiredCert: types.NewBool(true),
 		ClusterID:             "27",
-		SessionRecording:      services.RecordAtProxy,
-		Audit: services.AuditConfig{
+		SessionRecording:      types.RecordAtProxy,
+		Audit: types.AuditConfig{
 			Region:           "us-west-1",
 			Type:             "dynamodb",
 			AuditSessionsURI: "file:///home/log",

@@ -53,7 +53,7 @@ func TestMFADeviceManagement(t *testing.T) {
 	srv, err := as.NewTestTLSServer()
 	require.NoError(t, err)
 	// Enable U2F support.
-	authPref, err := services.NewAuthPreference(types.AuthPreferenceSpecV2{
+	authPref, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type: teleport.Local,
 		U2F: &types.U2F{
 			AppID:  "teleport",
@@ -553,7 +553,7 @@ func TestGenerateUserSingleUseCert(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enable U2F support.
-	authPref, err := services.NewAuthPreference(types.AuthPreferenceSpecV2{
+	authPref, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type: teleport.Local,
 		U2F: &types.U2F{
 			AppID:  "teleport",

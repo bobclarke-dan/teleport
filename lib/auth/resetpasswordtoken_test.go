@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/types"
 	authority "github.com/gravitational/teleport/lib/auth/testauthority"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/backend/lite"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
-	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 
@@ -53,7 +53,7 @@ func (s *ResetPasswordTokenTest) SetUpTest(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// set cluster name
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, check.IsNil)
@@ -69,9 +69,9 @@ func (s *ResetPasswordTokenTest) SetUpTest(c *check.C) {
 	err = s.a.SetClusterName(clusterName)
 	c.Assert(err, check.IsNil)
 
-	// Set services.ClusterConfig to disallow local auth.
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		LocalAuth: services.NewBool(true),
+	// Set types.ClusterConfig to disallow local auth.
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		LocalAuth: types.NewBool(true),
 	})
 	c.Assert(err, check.IsNil)
 
@@ -192,9 +192,9 @@ func (s *ResetPasswordTokenTest) TestFormatAccountName(c *check.C) {
 		{
 			description: "proxies with public address",
 			inDebugAuth: &debugAuth{
-				proxies: []services.Server{
-					&services.ServerV2{
-						Spec: services.ServerSpecV2{
+				proxies: []types.Server{
+					&types.ServerV2{
+						Spec: types.ServerSpecV2{
 							PublicAddr: "foo",
 							Version:    "bar",
 						},
@@ -207,9 +207,9 @@ func (s *ResetPasswordTokenTest) TestFormatAccountName(c *check.C) {
 		{
 			description: "proxies with no public address",
 			inDebugAuth: &debugAuth{
-				proxies: []services.Server{
-					&services.ServerV2{
-						Spec: services.ServerSpecV2{
+				proxies: []types.Server{
+					&types.ServerV2{
+						Spec: types.ServerSpecV2{
 							Hostname: "baz",
 							Version:  "quxx",
 						},
@@ -242,12 +242,12 @@ func (s *ResetPasswordTokenTest) TestFormatAccountName(c *check.C) {
 }
 
 type debugAuth struct {
-	proxies      []services.Server
+	proxies      []types.Server
 	proxiesError bool
 	clusterName  string
 }
 
-func (s *debugAuth) GetProxies() ([]services.Server, error) {
+func (s *debugAuth) GetProxies() ([]types.Server, error) {
 	if s.proxiesError {
 		return nil, trace.BadParameter("failed to fetch proxies")
 	}

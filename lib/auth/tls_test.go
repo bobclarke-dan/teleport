@@ -37,6 +37,7 @@ import (
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/api/client"
 	"github.com/gravitational/teleport/api/client/proto"
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
@@ -47,6 +48,7 @@ import (
 	"github.com/gravitational/teleport/lib/session"
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/pborman/uuid"
 
 	"github.com/gravitational/trace"
 	"github.com/jonboulle/clockwork"
@@ -215,25 +217,25 @@ func (s *TLSSuite) TestRemoteRotation(c *check.C) {
 	remoteServer.AuthServer.privateKey, ok = fixtures.PEMBytes["rsa"]
 	c.Assert(ok, check.Equals, true)
 	err = remoteServer.AuthServer.RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// moves to update clients
 	err = remoteServer.AuthServer.RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateClients,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateClients,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
-	remoteCA, err := remoteServer.AuthServer.GetCertAuthority(services.CertAuthID{
+	remoteCA, err := remoteServer.AuthServer.GetCertAuthority(types.CertAuthID{
 		DomainName: remoteServer.ClusterName,
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
@@ -250,16 +252,16 @@ func (s *TLSSuite) TestRemoteRotation(c *check.C) {
 	fixtures.ExpectAccessDenied(c, err)
 
 	// remote proxy can't read local cert authority with secrets
-	_, err = remoteProxy.GetCertAuthority(services.CertAuthID{
+	_, err = remoteProxy.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, true)
 	fixtures.ExpectAccessDenied(c, err)
 
 	// no secrets read is allowed
-	_, err = remoteProxy.GetCertAuthority(services.CertAuthID{
+	_, err = remoteProxy.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
@@ -299,9 +301,9 @@ func (s *TLSSuite) TestLocalProxyPermissions(c *check.C) {
 	err = s.server.AuthServer.Trust(remoteServer, nil)
 	c.Assert(err, check.IsNil)
 
-	ca, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
@@ -313,9 +315,9 @@ func (s *TLSSuite) TestLocalProxyPermissions(c *check.C) {
 	fixtures.ExpectAccessDenied(c, err)
 
 	// local proxy is allowed to update host CA of remote cert authorities
-	remoteCA, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	remoteCA, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: remoteServer.ClusterName,
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
@@ -340,9 +342,9 @@ func (s *TLSSuite) TestAutoRotation(c *check.C) {
 	c.Assert(ok, check.Equals, true)
 	gracePeriod := time.Hour
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		Mode:        services.RotationModeAuto,
+		Mode:        types.RotationModeAuto,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -351,12 +353,12 @@ func (s *TLSSuite) TestAutoRotation(c *check.C) {
 	err = s.server.Auth().autoRotateCertAuthorities()
 	c.Assert(err, check.IsNil)
 
-	ca, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
-	c.Assert(ca.GetRotation().Phase, check.Equals, services.RotationPhaseUpdateClients)
+	c.Assert(ca.GetRotation().Phase, check.Equals, types.RotationPhaseUpdateClients)
 
 	// old clients should work
 	_, err = s.server.CloneClient(proxy).GetNodes(defaults.Namespace, services.SkipValidation())
@@ -371,12 +373,12 @@ func (s *TLSSuite) TestAutoRotation(c *check.C) {
 	err = s.server.Auth().autoRotateCertAuthorities()
 	c.Assert(err, check.IsNil)
 
-	ca, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
-	c.Assert(ca.GetRotation().Phase, check.Equals, services.RotationPhaseUpdateServers)
+	c.Assert(ca.GetRotation().Phase, check.Equals, types.RotationPhaseUpdateServers)
 
 	// old clients should work
 	_, err = s.server.CloneClient(proxy).GetNodes(defaults.Namespace, services.SkipValidation())
@@ -393,12 +395,12 @@ func (s *TLSSuite) TestAutoRotation(c *check.C) {
 	s.clock.Advance(gracePeriod/3 + time.Minute)
 	err = s.server.Auth().autoRotateCertAuthorities()
 	c.Assert(err, check.IsNil)
-	ca, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
-	c.Assert(ca.GetRotation().Phase, check.Equals, services.RotationPhaseStandby)
+	c.Assert(ca.GetRotation().Phase, check.Equals, types.RotationPhaseStandby)
 	c.Assert(err, check.IsNil)
 
 	// old clients should no longer work
@@ -433,9 +435,9 @@ func (s *TLSSuite) TestAutoFallback(c *check.C) {
 	c.Assert(ok, check.Equals, true)
 	gracePeriod := time.Hour
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		Mode:        services.RotationModeAuto,
+		Mode:        types.RotationModeAuto,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -444,30 +446,30 @@ func (s *TLSSuite) TestAutoFallback(c *check.C) {
 	err = s.server.Auth().autoRotateCertAuthorities()
 	c.Assert(err, check.IsNil)
 
-	ca, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
-	c.Assert(ca.GetRotation().Phase, check.Equals, services.RotationPhaseUpdateClients)
-	c.Assert(ca.GetRotation().Mode, check.Equals, services.RotationModeAuto)
+	c.Assert(ca.GetRotation().Phase, check.Equals, types.RotationPhaseUpdateClients)
+	c.Assert(ca.GetRotation().Mode, check.Equals, types.RotationModeAuto)
 
 	// rollback rotation
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseRollback,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseRollback,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
-	ca, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
-	c.Assert(ca.GetRotation().Phase, check.Equals, services.RotationPhaseRollback)
-	c.Assert(ca.GetRotation().Mode, check.Equals, services.RotationModeManual)
+	c.Assert(ca.GetRotation().Phase, check.Equals, types.RotationPhaseRollback)
+	c.Assert(ca.GetRotation().Mode, check.Equals, types.RotationModeManual)
 }
 
 // TestManualRotation tests local manual rotation
@@ -488,19 +490,19 @@ func (s *TLSSuite) TestManualRotation(c *check.C) {
 	s.server.Auth().privateKey, ok = fixtures.PEMBytes["rsa"]
 	c.Assert(ok, check.Equals, true)
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateServers,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateServers,
+		Mode:        types.RotationModeManual,
 	})
 	fixtures.ExpectBadParameter(c, err)
 
 	// starts rotation
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -510,10 +512,10 @@ func (s *TLSSuite) TestManualRotation(c *check.C) {
 
 	// clients reconnect
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateClients,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateClients,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -530,19 +532,19 @@ func (s *TLSSuite) TestManualRotation(c *check.C) {
 
 	// can't jump to standy
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseStandby,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseStandby,
+		Mode:        types.RotationModeManual,
 	})
 	fixtures.ExpectBadParameter(c, err)
 
 	// advance rotation:
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateServers,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateServers,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -556,10 +558,10 @@ func (s *TLSSuite) TestManualRotation(c *check.C) {
 
 	// complete rotation
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseStandby,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseStandby,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -593,19 +595,19 @@ func (s *TLSSuite) TestRollback(c *check.C) {
 	s.server.Auth().privateKey, ok = fixtures.PEMBytes["rsa"]
 	c.Assert(ok, check.Equals, true)
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// move to update clients phase
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateClients,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateClients,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -618,19 +620,19 @@ func (s *TLSSuite) TestRollback(c *check.C) {
 
 	// advance rotation:
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateServers,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateServers,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// rollback rotation
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseRollback,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseRollback,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -641,19 +643,19 @@ func (s *TLSSuite) TestRollback(c *check.C) {
 
 	// can't jump to other phases
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateClients,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateClients,
+		Mode:        types.RotationModeManual,
 	})
 	fixtures.ExpectBadParameter(c, err)
 
 	// complete rollback
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseStandby,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseStandby,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -684,9 +686,9 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Check that the "old" CA can be used to verify tokens.
-	oldCA, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	oldCA, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.JWTSigner,
+		Type:       types.JWTSigner,
 	}, true)
 	c.Assert(err, check.IsNil)
 	c.Assert(oldCA.GetJWTKeyPairs(), check.HasLen, 1)
@@ -699,20 +701,20 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 	// verification), but requests will continue to be signed by the old CA.
 	gracePeriod := time.Hour
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.JWTSigner,
+		Type:        types.JWTSigner,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// At this point in rotation, two JWT key pairs should exist.
-	oldCA, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	oldCA, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.JWTSigner,
+		Type:       types.JWTSigner,
 	}, true)
 	c.Assert(err, check.IsNil)
-	c.Assert(oldCA.GetRotation().Phase, check.Equals, services.RotationPhaseInit)
+	c.Assert(oldCA.GetRotation().Phase, check.Equals, types.RotationPhaseInit)
 	c.Assert(oldCA.GetJWTKeyPairs(), check.HasLen, 2)
 
 	// Verify that the JWT token validates with the JWT authority.
@@ -722,10 +724,10 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 	// Move rotation into the update client phase. In this phase, requests will
 	// be signed by the new CA, but the old CA will be around to verify requests.
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.JWTSigner,
+		Type:        types.JWTSigner,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateClients,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateClients,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
@@ -740,13 +742,13 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// New tokens will validate with the new key.
-	newCA, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	newCA, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.JWTSigner,
+		Type:       types.JWTSigner,
 	}, true)
 	c.Assert(err, check.IsNil)
 	c.Assert(newCA.GetJWTKeyPairs(), check.HasLen, 2)
-	c.Assert(newCA.GetRotation().Phase, check.Equals, services.RotationPhaseUpdateClients)
+	c.Assert(newCA.GetRotation().Phase, check.Equals, types.RotationPhaseUpdateClients)
 
 	// Both JWT should now validate.
 	_, err = s.verifyJWT(s.clock, s.server.ClusterName(), newCA.GetJWTKeyPairs(), oldJWT)
@@ -756,21 +758,21 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 
 	// Move rotation into update servers phase.
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.JWTSigner,
+		Type:        types.JWTSigner,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseUpdateServers,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseUpdateServers,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// At this point only the phase on the CA should have changed.
-	newCA, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	newCA, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.JWTSigner,
+		Type:       types.JWTSigner,
 	}, true)
 	c.Assert(err, check.IsNil)
 	c.Assert(newCA.GetJWTKeyPairs(), check.HasLen, 2)
-	c.Assert(newCA.GetRotation().Phase, check.Equals, services.RotationPhaseUpdateServers)
+	c.Assert(newCA.GetRotation().Phase, check.Equals, types.RotationPhaseUpdateServers)
 
 	// Both JWT should continue to validate.
 	_, err = s.verifyJWT(s.clock, s.server.ClusterName(), newCA.GetJWTKeyPairs(), oldJWT)
@@ -780,21 +782,21 @@ func (s *TLSSuite) TestAppTokenRotation(c *check.C) {
 
 	// Complete rotation. The old CA will be removed.
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.JWTSigner,
+		Type:        types.JWTSigner,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseStandby,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseStandby,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
 	// The new CA should now only have a single key.
-	newCA, err = s.server.Auth().GetCertAuthority(services.CertAuthID{
+	newCA, err = s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.JWTSigner,
+		Type:       types.JWTSigner,
 	}, true)
 	c.Assert(err, check.IsNil)
 	c.Assert(newCA.GetJWTKeyPairs(), check.HasLen, 1)
-	c.Assert(newCA.GetRotation().Phase, check.Equals, services.RotationPhaseStandby)
+	c.Assert(newCA.GetRotation().Phase, check.Equals, types.RotationPhaseStandby)
 
 	// Old token should no longer validate.
 	_, err = s.verifyJWT(s.clock, s.server.ClusterName(), newCA.GetJWTKeyPairs(), oldJWT)
@@ -1490,10 +1492,10 @@ func (s *TLSSuite) TestWebSessionWithApprovedAccessRequest(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Create a approved access request.
-	accessReq, err := services.NewAccessRequest(user, []string{"test-request-role"}...)
+	accessReq, err := types.NewAccessRequest(uuid.New(), user, "test-request-role")
 	c.Assert(err, check.IsNil)
 
-	accessReq.SetState(services.RequestState_APPROVED)
+	accessReq.SetState(types.RequestState_APPROVED)
 
 	err = clt.CreateAccessRequest(context.Background(), accessReq)
 	c.Assert(err, check.IsNil)
@@ -1533,9 +1535,9 @@ func (s *TLSSuite) TestGetCertAuthority(c *check.C) {
 	defer nodeClt.Close()
 
 	// node is authorized to fetch CA without secrets
-	ca, err := nodeClt.GetCertAuthority(services.CertAuthID{
+	ca, err := nodeClt.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 	for _, keyPair := range ca.GetTLSKeyPairs() {
@@ -1545,18 +1547,18 @@ func (s *TLSSuite) TestGetCertAuthority(c *check.C) {
 	c.Assert(keys, check.HasLen, 0)
 
 	// node is not authorized to fetch CA with secrets
-	_, err = nodeClt.GetCertAuthority(services.CertAuthID{
+	_, err = nodeClt.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, true)
 	fixtures.ExpectAccessDenied(c, err)
 
 	// non-admin users are not allowed to get access to private key material
-	user, err := services.NewUser("bob")
+	user, err := types.NewUser("bob")
 	c.Assert(err, check.IsNil)
 
 	role := services.RoleForUser(user)
-	role.SetLogins(services.Allow, []string{user.GetName()})
+	role.SetLogins(types.Allow, []string{user.GetName()})
 	err = s.server.Auth().UpsertRole(ctx, role)
 	c.Assert(err, check.IsNil)
 
@@ -1569,16 +1571,16 @@ func (s *TLSSuite) TestGetCertAuthority(c *check.C) {
 	defer userClt.Close()
 
 	// user is authorized to fetch CA without secrets
-	_, err = userClt.GetCertAuthority(services.CertAuthID{
+	_, err = userClt.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
 	// user is not authorized to fetch CA with secrets
-	_, err = userClt.GetCertAuthority(services.CertAuthID{
+	_, err = userClt.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, true)
 	fixtures.ExpectAccessDenied(c, err)
 }
@@ -1609,7 +1611,7 @@ func (s *TLSSuite) TestAccessRequest(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Verify that user has correct requestable roles
-	caps, err := userClient.GetAccessCapabilities(context.TODO(), services.AccessCapabilitiesRequest{
+	caps, err := userClient.GetAccessCapabilities(context.TODO(), types.AccessCapabilitiesRequest{
 		RequestableRoles: true,
 	})
 	c.Assert(err, check.IsNil)
@@ -1625,21 +1627,21 @@ func (s *TLSSuite) TestAccessRequest(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// verify that no requestable roles are shown for user2
-	caps2, err := userClient2.GetAccessCapabilities(context.TODO(), services.AccessCapabilitiesRequest{
+	caps2, err := userClient2.GetAccessCapabilities(context.TODO(), types.AccessCapabilitiesRequest{
 		RequestableRoles: true,
 	})
 	c.Assert(err, check.IsNil)
 	c.Assert(caps2.RequestableRoles, check.HasLen, 0)
 
 	// create an allowable access request for user1
-	req, err := services.NewAccessRequest(user, role)
+	req, err := types.NewAccessRequest(uuid.New(), user, role)
 	c.Assert(err, check.IsNil)
 
 	c.Assert(userClient.CreateAccessRequest(context.TODO(), req), check.IsNil)
 
 	// sanity check; ensure that roles for which no `allow` directive
 	// exists cannot be requested.
-	badReq, err := services.NewAccessRequest(user, "some-fake-role")
+	badReq, err := types.NewAccessRequest(uuid.New(), user, "some-fake-role")
 	c.Assert(err, check.IsNil)
 	c.Assert(userClient.CreateAccessRequest(context.TODO(), badReq), check.NotNil)
 
@@ -1700,10 +1702,10 @@ func (s *TLSSuite) TestAccessRequest(c *check.C) {
 
 	// verify that user does not have the ability to approve their own request (not a special case, this
 	// user just wasn't created with the necessary roles for request management).
-	c.Assert(userClient.SetAccessRequestState(ctx, services.AccessRequestUpdate{RequestID: req.GetName(), State: services.RequestState_APPROVED}), check.NotNil)
+	c.Assert(userClient.SetAccessRequestState(ctx, types.AccessRequestUpdate{RequestID: req.GetName(), State: types.RequestState_APPROVED}), check.NotNil)
 
 	// attempt to apply request in APPROVED state (should succeed)
-	c.Assert(s.server.Auth().SetAccessRequestState(ctx, services.AccessRequestUpdate{RequestID: req.GetName(), State: services.RequestState_APPROVED}), check.IsNil)
+	c.Assert(s.server.Auth().SetAccessRequestState(ctx, types.AccessRequestUpdate{RequestID: req.GetName(), State: types.RequestState_APPROVED}), check.IsNil)
 	userCerts, err = generateCerts(req.GetName())
 	c.Assert(err, check.IsNil)
 	// ensure that the requested role was actually applied to the cert
@@ -1718,15 +1720,15 @@ func (s *TLSSuite) TestAccessRequest(c *check.C) {
 	c.Assert(rune(logins[0][0]), check.Not(check.Equals), '-')
 
 	// attempt to apply request in DENIED state (should fail)
-	c.Assert(s.server.Auth().SetAccessRequestState(ctx, services.AccessRequestUpdate{RequestID: req.GetName(), State: services.RequestState_DENIED}), check.IsNil)
+	c.Assert(s.server.Auth().SetAccessRequestState(ctx, types.AccessRequestUpdate{RequestID: req.GetName(), State: types.RequestState_DENIED}), check.IsNil)
 	_, err = generateCerts(req.GetName())
 	c.Assert(err, check.NotNil)
 
 	// ensure that once in the DENIED state, a request cannot be set back to PENDING state.
-	c.Assert(s.server.Auth().SetAccessRequestState(ctx, services.AccessRequestUpdate{RequestID: req.GetName(), State: services.RequestState_PENDING}), check.NotNil)
+	c.Assert(s.server.Auth().SetAccessRequestState(ctx, types.AccessRequestUpdate{RequestID: req.GetName(), State: types.RequestState_PENDING}), check.NotNil)
 
 	// ensure that once in the DENIED state, a request cannot be set back to APPROVED state.
-	c.Assert(s.server.Auth().SetAccessRequestState(ctx, services.AccessRequestUpdate{RequestID: req.GetName(), State: services.RequestState_APPROVED}), check.NotNil)
+	c.Assert(s.server.Auth().SetAccessRequestState(ctx, types.AccessRequestUpdate{RequestID: req.GetName(), State: types.RequestState_APPROVED}), check.NotNil)
 }
 
 func (s *TLSSuite) TestPluginData(c *check.C) {
@@ -1753,15 +1755,15 @@ func (s *TLSSuite) TestPluginData(c *check.C) {
 	userClient, err := s.server.NewClient(testUser)
 	c.Assert(err, check.IsNil)
 
-	req, err := services.NewAccessRequest(user, role)
+	req, err := types.NewAccessRequest(uuid.New(), user, role)
 	c.Assert(err, check.IsNil)
 
 	c.Assert(userClient.CreateAccessRequest(context.TODO(), req), check.IsNil)
 
 	plugin := "my-plugin"
 
-	err = s.server.Auth().UpdatePluginData(context.TODO(), services.PluginDataUpdateParams{
-		Kind:     services.KindAccessRequest,
+	err = s.server.Auth().UpdatePluginData(context.TODO(), types.PluginDataUpdateParams{
+		Kind:     types.KindAccessRequest,
 		Resource: req.GetName(),
 		Plugin:   plugin,
 		Set: map[string]string{
@@ -1770,8 +1772,8 @@ func (s *TLSSuite) TestPluginData(c *check.C) {
 	})
 	c.Assert(err, check.IsNil)
 
-	data, err := s.server.Auth().GetPluginData(context.TODO(), services.PluginDataFilter{
-		Kind:     services.KindAccessRequest,
+	data, err := s.server.Auth().GetPluginData(context.TODO(), types.PluginDataFilter{
+		Kind:     types.KindAccessRequest,
 		Resource: req.GetName(),
 	})
 	c.Assert(err, check.IsNil)
@@ -1781,8 +1783,8 @@ func (s *TLSSuite) TestPluginData(c *check.C) {
 	c.Assert(ok, check.Equals, true)
 	c.Assert(entry.Data, check.DeepEquals, map[string]string{"foo": "bar"})
 
-	err = s.server.Auth().UpdatePluginData(context.TODO(), services.PluginDataUpdateParams{
-		Kind:     services.KindAccessRequest,
+	err = s.server.Auth().UpdatePluginData(context.TODO(), types.PluginDataUpdateParams{
+		Kind:     types.KindAccessRequest,
 		Resource: req.GetName(),
 		Plugin:   plugin,
 		Set: map[string]string{
@@ -1795,8 +1797,8 @@ func (s *TLSSuite) TestPluginData(c *check.C) {
 	})
 	c.Assert(err, check.IsNil)
 
-	data, err = s.server.Auth().GetPluginData(context.TODO(), services.PluginDataFilter{
-		Kind:     services.KindAccessRequest,
+	data, err = s.server.Auth().GetPluginData(context.TODO(), types.PluginDataFilter{
+		Kind:     types.KindAccessRequest,
 		Resource: req.GetName(),
 	})
 	c.Assert(err, check.IsNil)
@@ -1973,8 +1975,8 @@ func (s *TLSSuite) TestGenerateCerts(c *check.C) {
 
 	// now update role to permit agent and X11 forwarding
 	roleOptions := userRole.GetOptions()
-	roleOptions.ForwardAgent = services.NewBool(true)
-	roleOptions.PermitX11Forwarding = services.NewBool(true)
+	roleOptions.ForwardAgent = types.NewBool(true)
+	roleOptions.PermitX11Forwarding = types.NewBool(true)
 	userRole.SetOptions(roleOptions)
 	err = s.server.Auth().UpsertRole(ctx, userRole)
 	c.Assert(err, check.IsNil)
@@ -2015,8 +2017,8 @@ func (s *TLSSuite) TestGenerateAppToken(c *check.C) {
 	authClient, err := s.server.NewClient(TestBuiltin(teleport.RoleAdmin))
 	c.Assert(err, check.IsNil)
 
-	ca, err := authClient.GetCertAuthority(services.CertAuthID{
-		Type:       services.JWTSigner,
+	ca, err := authClient.GetCertAuthority(types.CertAuthID{
+		Type:       types.JWTSigner,
 		DomainName: s.server.ClusterName(),
 	}, true)
 	c.Assert(err, check.IsNil)
@@ -2161,8 +2163,8 @@ func (s *TLSSuite) TestClusterConfigContext(c *check.C) {
 	fixtures.ExpectAccessDenied(c, err)
 
 	// update cluster config to record at the proxy
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		SessionRecording: services.RecordAtProxy,
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		SessionRecording: types.RecordAtProxy,
 	})
 	c.Assert(err, check.IsNil)
 	err = s.server.Auth().SetClusterConfig(clusterConfig)
@@ -2205,7 +2207,7 @@ func (s *TLSSuite) TestAuthenticateWebUserOTP(c *check.C) {
 	proxy, err := s.server.NewClient(TestBuiltin(teleport.RoleProxy))
 	c.Assert(err, check.IsNil)
 
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: teleport.OTP,
 	})
@@ -2301,15 +2303,15 @@ func (s *TLSSuite) TestLoginAttempts(c *check.C) {
 }
 
 func (s *TLSSuite) TestChangePasswordWithToken(c *check.C) {
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		LocalAuth: services.NewBool(true),
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		LocalAuth: types.NewBool(true),
 	})
 	c.Assert(err, check.IsNil)
 
 	err = s.server.Auth().SetClusterConfig(clusterConfig)
 	c.Assert(err, check.IsNil)
 
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: teleport.OTP,
 	})
@@ -2360,9 +2362,9 @@ func (s *TLSSuite) TestLoginNoLocalAuth(c *check.C) {
 	err = clt.UpsertPassword(user, pass)
 	c.Assert(err, check.IsNil)
 
-	// Set services.ClusterConfig to disallow local auth.
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		LocalAuth: services.NewBool(false),
+	// Set types.ClusterConfig to disallow local auth.
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		LocalAuth: types.NewBool(false),
 	})
 	c.Assert(err, check.IsNil)
 	err = s.server.Auth().SetClusterConfig(clusterConfig)
@@ -2477,9 +2479,9 @@ func (s *TLSSuite) TestRegisterCAPin(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Calculate what CA pin should be.
-	hostCA, err := s.server.AuthServer.AuthServer.GetCertAuthority(services.CertAuthID{
+	hostCA, err := s.server.AuthServer.AuthServer.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.AuthServer.ClusterName,
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 	tlsCA, err := tlsca.FromAuthority(hostCA)
@@ -2562,9 +2564,9 @@ func (s *TLSSuite) TestRegisterCAPath(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Extract the root CA public key and write it out to the data dir.
-	hostCA, err := s.server.AuthServer.AuthServer.GetCertAuthority(services.CertAuthID{
+	hostCA, err := s.server.AuthServer.AuthServer.GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.AuthServer.ClusterName,
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 	tlsCA, err := tlsca.FromAuthority(hostCA)
@@ -2597,14 +2599,14 @@ func (s *TLSSuite) TestRegisterCAPath(c *check.C) {
 // TestEventsNodePresence tests streaming node presence API -
 // announcing node and keeping node alive
 func (s *TLSSuite) TestEventsNodePresence(c *check.C) {
-	node := &services.ServerV2{
-		Kind:    services.KindNode,
-		Version: services.V2,
-		Metadata: services.Metadata{
+	node := &types.ServerV2{
+		Kind:    types.KindNode,
+		Version: types.V2,
+		Metadata: types.Metadata{
 			Name:      "node1",
 			Namespace: defaults.Namespace,
 		},
-		Spec: services.ServerSpecV2{
+		Spec: types.ServerSpecV2{
 			Addr: "localhost:3022",
 		},
 	}
@@ -2673,7 +2675,7 @@ func (s *TLSSuite) TestEventsPermissions(c *check.C) {
 	defer clt.Close()
 
 	ctx := context.TODO()
-	w, err := clt.NewWatcher(ctx, services.Watch{Kinds: []services.WatchKind{{Kind: services.KindCertAuthority}}})
+	w, err := clt.NewWatcher(ctx, types.Watch{Kinds: []types.WatchKind{{Kind: types.KindCertAuthority}}})
 	c.Assert(err, check.IsNil)
 	defer w.Close()
 
@@ -2687,16 +2689,16 @@ func (s *TLSSuite) TestEventsPermissions(c *check.C) {
 	// start rotation
 	gracePeriod := time.Hour
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
-	ca, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, false)
 	c.Assert(err, check.IsNil)
 
@@ -2705,42 +2707,42 @@ func (s *TLSSuite) TestEventsPermissions(c *check.C) {
 	type testCase struct {
 		name     string
 		identity TestIdentity
-		watches  []services.WatchKind
+		watches  []types.WatchKind
 	}
 
 	testCases := []testCase{
 		{
 			name:     "node role is not authorized to get certificate authority with secret data loaded",
 			identity: TestBuiltin(teleport.RoleNode),
-			watches:  []services.WatchKind{{Kind: services.KindCertAuthority, LoadSecrets: true}},
+			watches:  []types.WatchKind{{Kind: types.KindCertAuthority, LoadSecrets: true}},
 		},
 		{
 			name:     "node role is not authorized to watch static tokens",
 			identity: TestBuiltin(teleport.RoleNode),
-			watches:  []services.WatchKind{{Kind: services.KindStaticTokens}},
+			watches:  []types.WatchKind{{Kind: types.KindStaticTokens}},
 		},
 		{
 			name:     "node role is not authorized to watch provisioning tokens",
 			identity: TestBuiltin(teleport.RoleNode),
-			watches:  []services.WatchKind{{Kind: services.KindToken}},
+			watches:  []types.WatchKind{{Kind: types.KindToken}},
 		},
 		{
 			name:     "nop role is not authorized to watch users and roles",
 			identity: TestBuiltin(teleport.RoleNop),
-			watches: []services.WatchKind{
-				{Kind: services.KindUser},
-				{Kind: services.KindRole},
+			watches: []types.WatchKind{
+				{Kind: types.KindUser},
+				{Kind: types.KindRole},
 			},
 		},
 		{
 			name:     "nop role is not authorized to watch cert authorities",
 			identity: TestBuiltin(teleport.RoleNop),
-			watches:  []services.WatchKind{{Kind: services.KindCertAuthority, LoadSecrets: false}},
+			watches:  []types.WatchKind{{Kind: types.KindCertAuthority, LoadSecrets: false}},
 		},
 		{
 			name:     "nop role is not authorized to watch cluster config",
 			identity: TestBuiltin(teleport.RoleNop),
-			watches:  []services.WatchKind{{Kind: services.KindClusterConfig, LoadSecrets: false}},
+			watches:  []types.WatchKind{{Kind: types.KindClusterConfig, LoadSecrets: false}},
 		},
 	}
 
@@ -2749,7 +2751,7 @@ func (s *TLSSuite) TestEventsPermissions(c *check.C) {
 		c.Assert(err, check.IsNil)
 		defer client.Close()
 
-		watcher, err := client.NewWatcher(ctx, services.Watch{
+		watcher, err := client.NewWatcher(ctx, types.Watch{
 			Kinds: tc.watches,
 		})
 		c.Assert(err, check.IsNil)
@@ -2800,12 +2802,12 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 	defer clt.Close()
 
 	ctx := context.TODO()
-	w, err := clt.NewWatcher(ctx, services.Watch{Kinds: []services.WatchKind{
-		{Kind: services.KindCertAuthority, LoadSecrets: true},
-		{Kind: services.KindStaticTokens},
-		{Kind: services.KindToken},
-		{Kind: services.KindClusterConfig},
-		{Kind: services.KindClusterName},
+	w, err := clt.NewWatcher(ctx, types.Watch{Kinds: []types.WatchKind{
+		{Kind: types.KindCertAuthority, LoadSecrets: true},
+		{Kind: types.KindStaticTokens},
+		{Kind: types.KindToken},
+		{Kind: types.KindClusterConfig},
+		{Kind: types.KindClusterName},
 	}})
 	c.Assert(err, check.IsNil)
 	defer w.Close()
@@ -2820,24 +2822,24 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 	// start rotation
 	gracePeriod := time.Hour
 	err = s.server.Auth().RotateCertAuthority(RotateRequest{
-		Type:        services.HostCA,
+		Type:        types.HostCA,
 		GracePeriod: &gracePeriod,
-		TargetPhase: services.RotationPhaseInit,
-		Mode:        services.RotationModeManual,
+		TargetPhase: types.RotationPhaseInit,
+		Mode:        types.RotationModeManual,
 	})
 	c.Assert(err, check.IsNil)
 
-	ca, err := s.server.Auth().GetCertAuthority(services.CertAuthID{
+	ca, err := s.server.Auth().GetCertAuthority(types.CertAuthID{
 		DomainName: s.server.ClusterName(),
-		Type:       services.HostCA,
+		Type:       types.HostCA,
 	}, true)
 	c.Assert(err, check.IsNil)
 
 	suite.ExpectResource(c, w, 3*time.Second, ca)
 
 	// set static tokens
-	staticTokens, err := services.NewStaticTokens(services.StaticTokensSpecV2{
-		StaticTokens: []services.ProvisionTokenV1{
+	staticTokens, err := types.NewStaticTokens(types.StaticTokensSpecV2{
+		StaticTokens: []types.ProvisionTokenV1{
 			{
 				Token:   "tok1",
 				Roles:   teleport.Roles{teleport.RoleNode},
@@ -2855,7 +2857,7 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 	suite.ExpectResource(c, w, 3*time.Second, staticTokens)
 
 	// create provision token and expect the update event
-	token, err := services.NewProvisionToken(
+	token, err := types.NewProvisionToken(
 		"tok2", teleport.Roles{teleport.RoleProxy}, time.Now().UTC().Add(3*time.Hour))
 	c.Assert(err, check.IsNil)
 
@@ -2870,19 +2872,19 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 	// delete token and expect delete event
 	err = s.server.Auth().DeleteToken(token.GetName())
 	c.Assert(err, check.IsNil)
-	suite.ExpectDeleteResource(c, w, 3*time.Second, &services.ResourceHeader{
-		Kind:    services.KindToken,
-		Version: services.V2,
-		Metadata: services.Metadata{
+	suite.ExpectDeleteResource(c, w, 3*time.Second, &types.ResourceHeader{
+		Kind:    types.KindToken,
+		Version: types.V2,
+		Metadata: types.Metadata{
 			Namespace: defaults.Namespace,
 			Name:      token.GetName(),
 		},
 	})
 
 	// update cluster config to record at the proxy
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		SessionRecording: services.RecordAtProxy,
-		Audit: services.AuditConfig{
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		SessionRecording: types.RecordAtProxy,
+		Audit: types.AuditConfig{
 			AuditEventsURI: []string{"dynamodb://audit_table_name", "file:///home/log"},
 		},
 	})
@@ -2899,17 +2901,17 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// update the resource with different labels to test the change
-	clusterName := &services.ClusterNameV2{
-		Kind:    services.KindClusterName,
-		Version: services.V2,
-		Metadata: services.Metadata{
-			Name:      services.MetaNameClusterName,
+	clusterName := &types.ClusterNameV2{
+		Kind:    types.KindClusterName,
+		Version: types.V2,
+		Metadata: types.Metadata{
+			Name:      types.MetaNameClusterName,
 			Namespace: defaults.Namespace,
 			Labels: map[string]string{
 				"key": "val",
 			},
 		},
-		Spec: services.ClusterNameSpecV2{
+		Spec: types.ClusterNameSpecV2{
 			ClusterName: clusterNameResource.GetClusterName(),
 		},
 	}
@@ -2925,7 +2927,7 @@ func (s *TLSSuite) TestEventsClusterConfig(c *check.C) {
 }
 
 // verifyJWT verifies that the token was signed by one the passed in key pair.
-func (s *TLSSuite) verifyJWT(clock clockwork.Clock, clusterName string, pairs []services.JWTKeyPair, token string) (*jwt.Claims, error) {
+func (s *TLSSuite) verifyJWT(clock clockwork.Clock, clusterName string, pairs []types.JWTKeyPair, token string) (*jwt.Claims, error) {
 	errs := []error{}
 	for _, pair := range pairs {
 		publicKey, err := utils.ParsePublicKey(pair.PublicKey)

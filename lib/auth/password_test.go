@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/types"
 	authority "github.com/gravitational/teleport/lib/auth/testauthority"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/backend/lite"
@@ -61,7 +62,7 @@ func (s *PasswordSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 
 	// set cluster name
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, IsNil)
@@ -77,8 +78,8 @@ func (s *PasswordSuite) SetUpTest(c *C) {
 	err = s.a.SetClusterName(clusterName)
 	c.Assert(err, IsNil)
 
-	clusterConfig, err := services.NewClusterConfig(services.ClusterConfigSpecV3{
-		LocalAuth: services.NewBool(true),
+	clusterConfig, err := types.NewClusterConfig(types.ClusterConfigSpecV3{
+		LocalAuth: types.NewBool(true),
 	})
 	c.Assert(err, IsNil)
 
@@ -86,8 +87,8 @@ func (s *PasswordSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 
 	// set static tokens
-	staticTokens, err := services.NewStaticTokens(services.StaticTokensSpecV2{
-		StaticTokens: []services.ProvisionTokenV1{},
+	staticTokens, err := types.NewStaticTokens(types.StaticTokensSpecV2{
+		StaticTokens: []types.ProvisionTokenV1{},
 	})
 	c.Assert(err, IsNil)
 	err = s.a.SetStaticTokens(staticTokens)
@@ -238,7 +239,7 @@ func (s *PasswordSuite) TestChangePasswordWithOTP(c *C) {
 }
 
 func (s *PasswordSuite) TestChangePasswordWithToken(c *C) {
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: teleport.OFF,
 	})
@@ -269,7 +270,7 @@ func (s *PasswordSuite) TestChangePasswordWithToken(c *C) {
 }
 
 func (s *PasswordSuite) TestChangePasswordWithTokenOTP(c *C) {
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: teleport.OTP,
 	})
@@ -306,7 +307,7 @@ func (s *PasswordSuite) TestChangePasswordWithTokenOTP(c *C) {
 }
 
 func (s *PasswordSuite) TestChangePasswordWithTokenErrors(c *C) {
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: teleport.OTP,
 	})
@@ -414,17 +415,17 @@ func (s *PasswordSuite) prepareForPasswordChange(user string, pass []byte, secon
 		OldPassword: pass,
 	}
 
-	err := s.a.UpsertCertAuthority(suite.NewTestCA(services.UserCA, "me.localhost"))
+	err := s.a.UpsertCertAuthority(suite.NewTestCA(types.UserCA, "me.localhost"))
 	if err != nil {
 		return req, err
 	}
 
-	err = s.a.UpsertCertAuthority(suite.NewTestCA(services.HostCA, "me.localhost"))
+	err = s.a.UpsertCertAuthority(suite.NewTestCA(types.HostCA, "me.localhost"))
 	if err != nil {
 		return req, err
 	}
 
-	ap, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	ap, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         teleport.Local,
 		SecondFactor: secondFactorType,
 	})

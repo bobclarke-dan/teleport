@@ -74,7 +74,7 @@ type AccessRequest interface {
 }
 
 // NewAccessRequest assembled an AccessRequest resource.
-func NewAccessRequest(name string, user string, roles ...string) (AccessRequest, error) {
+func NewAccessRequest(name, user, role string, additionalRoles ...string) (AccessRequest, error) {
 	req := AccessRequestV3{
 		Kind:    KindAccessRequest,
 		Version: V3,
@@ -83,7 +83,7 @@ func NewAccessRequest(name string, user string, roles ...string) (AccessRequest,
 		},
 		Spec: AccessRequestSpecV3{
 			User:  user,
-			Roles: roles,
+			Roles: append([]string{role}, additionalRoles...),
 			State: RequestState_PENDING,
 		},
 	}

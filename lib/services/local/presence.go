@@ -214,7 +214,7 @@ func (s *PresenceService) GetNodes(namespace string, opts ...services.MarshalOpt
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	// Marshal values into a []services.Server slice.
+	// Marshal values into a []types.Server slice.
 	servers := make([]types.Server, len(result.Items))
 	for i, item := range result.Items {
 		server, err := services.UnmarshalServer(

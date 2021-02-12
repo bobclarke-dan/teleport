@@ -224,12 +224,14 @@ type ServerIdentity interface {
 }
 
 // ServerWebSessionsGetter manages web sessions on auth server
+// FIXME(dmitri): move to lib/auth
 type ServerWebSessionsGetter interface {
 	// WebSessions returns the web session manager
 	WebSessions() ServerWebSessions
 }
 
 // ServerWebSessions manages web sessions on the auth server
+// FIXME(dmitri): move to lib/auth
 type ServerWebSessions interface {
 	types.WebSessionInterface
 
@@ -238,12 +240,14 @@ type ServerWebSessions interface {
 }
 
 // ServerWebTokensGetter manages web tokens on auth server
+// FIXME(dmitri): move to lib/auth
 type ServerWebTokensGetter interface {
 	// WebTokens returns the web token manager
 	WebTokens() ServerWebTokens
 }
 
 // ServerWebTokens manages web session on the auth server
+// FIXME(dmitri): move to lib/auth
 type ServerWebTokens interface {
 	types.WebTokenInterface
 

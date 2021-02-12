@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
@@ -135,10 +136,10 @@ func (p *ProcessStorage) ReadIdentity(name string, role teleport.Role) (*Identit
 // WriteIdentity writes identity to the backend.
 func (p *ProcessStorage) WriteIdentity(name string, id Identity) error {
 	res := IdentityV2{
-		ResourceHeader: services.ResourceHeader{
-			Kind:    services.KindIdentity,
-			Version: services.V2,
-			Metadata: services.Metadata{
+		ResourceHeader: types.ResourceHeader{
+			Kind:    types.KindIdentity,
+			Version: types.V2,
+			Metadata: types.Metadata{
 				Name: name,
 			},
 		},
@@ -168,15 +169,15 @@ func (p *ProcessStorage) WriteIdentity(name string, id Identity) error {
 // StateV2 is a local process state.
 type StateV2 struct {
 	// ResourceHeader is a common resource header.
-	services.ResourceHeader
+	types.ResourceHeader
 	// Spec is a process spec.
 	Spec StateSpecV2 `json:"spec"`
 }
 
 // CheckAndSetDefaults checks and sets defaults values.
 func (s *StateV2) CheckAndSetDefaults() error {
-	s.Kind = services.KindState
-	s.Version = services.V2
+	s.Kind = types.KindState
+	s.Version = types.V2
 	// for state resource name does not matter
 	if s.Metadata.Name == "" {
 		s.Metadata.Name = stateName
@@ -190,21 +191,21 @@ func (s *StateV2) CheckAndSetDefaults() error {
 // StateSpecV2 is a state spec.
 type StateSpecV2 struct {
 	// Rotation holds local process rotation state.
-	Rotation services.Rotation `json:"rotation"`
+	Rotation types.Rotation `json:"rotation"`
 }
 
 // IdentityV2 specifies local host identity.
 type IdentityV2 struct {
 	// ResourceHeader is a common resource header.
-	services.ResourceHeader
+	types.ResourceHeader
 	// Spec is the identity spec.
 	Spec IdentitySpecV2 `json:"spec"`
 }
 
 // CheckAndSetDefaults checks and sets defaults values.
 func (s *IdentityV2) CheckAndSetDefaults() error {
-	s.Kind = services.KindIdentity
-	s.Version = services.V2
+	s.Kind = types.KindIdentity
+	s.Version = types.V2
 	if err := s.Metadata.CheckAndSetDefaults(); err != nil {
 		return trace.Wrap(err)
 	}

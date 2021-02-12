@@ -30,7 +30,7 @@ import (
 )
 
 // ValidateAccessRequest validates the AccessRequest and sets default values
-func ValidateAccessRequest(ar AccessRequest) error {
+func ValidateAccessRequest(ar types.AccessRequest) error {
 	if err := ar.CheckAndSetDefaults(); err != nil {
 		return trace.Wrap(err)
 	}
@@ -41,8 +41,8 @@ func ValidateAccessRequest(ar AccessRequest) error {
 }
 
 // NewAccessRequest assembles an AccessRequest resource.
-func NewAccessRequest(user string, roles ...string) (AccessRequest, error) {
-	req, err := types.NewAccessRequest(uuid.New(), user, roles...)
+func NewAccessRequest(user, role string, additionalRoles ...string) (types.AccessRequest, error) {
+	req, err := types.NewAccessRequest(uuid.New(), user, role, additionalRoles...)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

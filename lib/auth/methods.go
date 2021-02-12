@@ -170,7 +170,7 @@ func (s *Server) authenticateUser(ctx context.Context, req AuthenticateUserReque
 // AuthenticateWebUser authenticates web user, creates and returns a web session
 // if authentication is successful. In case the existing session ID is used to authenticate,
 // returns the existing session instead of creating a new one
-func (s *Server) AuthenticateWebUser(req AuthenticateUserRequest) (services.WebSession, error) {
+func (s *Server) AuthenticateWebUser(req AuthenticateUserRequest) (types.WebSession, error) {
 	clusterConfig, err := s.GetClusterConfig()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -287,7 +287,7 @@ func (c *TrustedCerts) SSHCertPublicKeys() ([]ssh.PublicKey, error) {
 }
 
 // AuthoritiesToTrustedCerts serializes authorities to TrustedCerts data structure
-func AuthoritiesToTrustedCerts(authorities []services.CertAuthority) []TrustedCerts {
+func AuthoritiesToTrustedCerts(authorities []types.CertAuthority) []TrustedCerts {
 	out := make([]TrustedCerts, len(authorities))
 	for i, ca := range authorities {
 		out[i] = TrustedCerts{
@@ -320,7 +320,7 @@ func (s *Server) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginRespo
 		return nil, trace.Wrap(err)
 	}
 
-	// It's safe to extract the roles and traits directly from services.User as
+	// It's safe to extract the roles and traits directly from types.User as
 	// this endpoint is only used for local accounts.
 	user, err := s.GetUser(req.Username, false)
 	if err != nil {
@@ -332,14 +332,14 @@ func (s *Server) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginRespo
 	}
 
 	// Return the host CA for this cluster only.
-	authority, err := s.GetCertAuthority(services.CertAuthID{
-		Type:       services.HostCA,
+	authority, err := s.GetCertAuthority(types.CertAuthID{
+		Type:       types.HostCA,
 		DomainName: clusterName.GetClusterName(),
 	}, false)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	hostCertAuthorities := []services.CertAuthority{
+	hostCertAuthorities := []types.CertAuthority{
 		authority,
 	}
 
@@ -383,8 +383,8 @@ func (s *Server) emitNoLocalAuthEvent(username string) {
 	}
 }
 
-func (s *Server) createUserWebSession(ctx context.Context, user services.User) (services.WebSession, error) {
-	// It's safe to extract the roles and traits directly from services.User as this method
+func (s *Server) createUserWebSession(ctx context.Context, user types.User) (types.WebSession, error) {
+	// It's safe to extract the roles and traits directly from types.User as this method
 	// is only used for local accounts.
 	return s.createWebSession(ctx, types.NewWebSessionRequest{
 		User:   user.GetName(),

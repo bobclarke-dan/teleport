@@ -59,6 +59,7 @@ import (
 
 	gops "github.com/google/gops/agent"
 	"github.com/jonboulle/clockwork"
+	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -1004,7 +1005,7 @@ func executeAccessRequest(cf *CLIConf) error {
 	if cf.Username == "" {
 		cf.Username = tc.Username
 	}
-	req, err := services.NewAccessRequest(cf.Username, roles...)
+	req, err := types.NewAccessRequest(uuid.New(), cf.Username, roles[0], roles[1:]...)
 	if err != nil {
 		return trace.Wrap(err)
 	}

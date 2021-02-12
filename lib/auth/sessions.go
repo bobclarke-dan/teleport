@@ -32,11 +32,11 @@ import (
 	"github.com/pborman/uuid"
 )
 
-// CreateAppSession creates and inserts a services.WebSession into the
+// CreateAppSession creates and inserts a types.WebSession into the
 // backend with the identity of the caller used to generate the certificate.
 // The certificate is used for all access requests, which is where access
 // control is enforced.
-func (s *Server) CreateAppSession(ctx context.Context, req services.CreateAppSessionRequest, user services.User, checker services.AccessChecker) (services.WebSession, error) {
+func (s *Server) CreateAppSession(ctx context.Context, req types.CreateAppSessionRequest, user types.User, checker services.AccessChecker) (types.WebSession, error) {
 	// Check that a matching parent web session exists in the backend.
 	parentSession, err := s.Services.GetWebSession(ctx, types.GetWebSessionRequest{
 		User:      req.Username,
@@ -76,12 +76,12 @@ func (s *Server) CreateAppSession(ctx context.Context, req services.CreateAppSes
 		return nil, trace.Wrap(err)
 	}
 
-	// Create services.WebSession for this session.
+	// Create types.WebSession for this session.
 	sessionID, err := utils.CryptoRandomHex(SessionTokenBytes)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	session := services.NewWebSession(sessionID, services.KindWebSession, services.KindAppSession, services.WebSessionSpecV2{
+	session := types.NewWebSession(sessionID, types.KindWebSession, types.KindAppSession, types.WebSessionSpecV2{
 		User:    req.Username,
 		Priv:    privateKey,
 		Pub:     certs.ssh,
@@ -104,8 +104,8 @@ func (s *Server) generateAppToken(username string, roles []string, uri string, e
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
-	ca, err := s.GetCertAuthority(services.CertAuthID{
-		Type:       services.JWTSigner,
+	ca, err := s.GetCertAuthority(types.CertAuthID{
+		Type:       types.JWTSigner,
 		DomainName: clusterName,
 	}, true)
 	if err != nil {

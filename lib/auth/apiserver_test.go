@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/services"
 
@@ -39,61 +40,61 @@ func TestUpsertServer(t *testing.T) {
 	tests := []struct {
 		desc       string
 		role       teleport.Role
-		reqServer  services.Server
-		wantServer services.Server
+		reqServer  types.Server
+		wantServer types.Server
 		assertErr  require.ErrorAssertionFunc
 	}{
 		{
 			desc: "node",
-			reqServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindNode,
+			reqServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindNode,
 			},
 			role: teleport.RoleNode,
-			wantServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindNode,
+			wantServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindNode,
 			},
 			assertErr: require.NoError,
 		},
 		{
 			desc: "proxy",
-			reqServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindProxy,
+			reqServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindProxy,
 			},
 			role: teleport.RoleProxy,
-			wantServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindProxy,
+			wantServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindProxy,
 			},
 			assertErr: require.NoError,
 		},
 		{
 			desc: "auth",
-			reqServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindAuthServer,
+			reqServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindAuthServer,
 			},
 			role: teleport.RoleAuth,
-			wantServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindAuthServer,
+			wantServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindAuthServer,
 			},
 			assertErr: require.NoError,
 		},
 		{
 			desc: "unknown",
-			reqServer: &services.ServerV2{
-				Metadata: services.Metadata{Name: "test-server", Namespace: defaults.Namespace},
-				Version:  services.V2,
-				Kind:     services.KindNode,
+			reqServer: &types.ServerV2{
+				Metadata: types.Metadata{Name: "test-server", Namespace: defaults.Namespace},
+				Version:  types.V2,
+				Kind:     types.KindNode,
 			},
 			role:      teleport.Role("unknown"),
 			assertErr: require.Error,
@@ -121,15 +122,15 @@ func TestUpsertServer(t *testing.T) {
 			}
 
 			// Fetch all servers from the backend, there should only be 1.
-			var allServers []services.Server
-			addServers := func(servers []services.Server, err error) {
+			var allServers []types.Server
+			addServers := func(servers []types.Server, err error) {
 				require.NoError(t, err)
 				allServers = append(allServers, servers...)
 			}
 			addServers(s.GetAuthServers())
 			addServers(s.GetNodes(defaults.Namespace))
 			addServers(s.GetProxies())
-			require.Empty(t, cmp.Diff(allServers, []services.Server{tt.wantServer}))
+			require.Empty(t, cmp.Diff(allServers, []types.Server{tt.wantServer}))
 		})
 	}
 }

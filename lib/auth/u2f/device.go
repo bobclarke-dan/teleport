@@ -39,6 +39,8 @@ type DeviceStorage interface {
 //
 // This function is not in lib/services due to an import cycle (lib/services
 // depends on lib/auth/u2f).
+//
+// FIXME(dmitri): update the comment regarding lib/services
 func NewDevice(name string, reg *Registration, addedAt time.Time) (*types.MFADevice, error) {
 	d := types.NewMFADevice(name, addedAt)
 	pubKey, err := x509.MarshalPKIXPublicKey(&reg.PubKey)

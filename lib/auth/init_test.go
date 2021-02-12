@@ -183,22 +183,22 @@ func (s *AuthInitSuite) TestAuthPreference(c *C) {
 	bk, err := lite.New(context.TODO(), backend.Params{"path": s.tempDir})
 	c.Assert(err, IsNil)
 
-	ap, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	ap, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type:         "local",
 		SecondFactor: "u2f",
-		U2F: &services.U2F{
+		U2F: &types.U2F{
 			AppID:  "foo",
 			Facets: []string{"bar", "baz"},
 		},
 	})
 	c.Assert(err, IsNil)
 
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, IsNil)
-	staticTokens, err := services.NewStaticTokens(services.StaticTokensSpecV2{
-		StaticTokens: []services.ProvisionTokenV1{},
+	staticTokens, err := types.NewStaticTokens(types.StaticTokensSpecV2{
+		StaticTokens: []types.ProvisionTokenV1{},
 	})
 	c.Assert(err, IsNil)
 
@@ -231,12 +231,12 @@ func (s *AuthInitSuite) TestClusterID(c *C) {
 	bk, err := lite.New(context.TODO(), backend.Params{"path": c.MkDir()})
 	c.Assert(err, IsNil)
 
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, IsNil)
 
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type: "local",
 	})
 	c.Assert(err, IsNil)
@@ -285,12 +285,12 @@ func (s *AuthInitSuite) TestClusterName(c *C) {
 	bk, err := lite.New(context.TODO(), backend.Params{"path": c.MkDir()})
 	c.Assert(err, IsNil)
 
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, IsNil)
 
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type: "local",
 	})
 	c.Assert(err, IsNil)
@@ -311,7 +311,7 @@ func (s *AuthInitSuite) TestClusterName(c *C) {
 
 	// Start the auth server with a different cluster name. The auth server
 	// should start, but with the original name.
-	clusterName, err = services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err = types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "dev.localhost",
 	})
 	c.Assert(err, IsNil)
@@ -339,12 +339,12 @@ func (s *AuthInitSuite) TestCASigningAlg(c *C) {
 	bk, err := lite.New(context.TODO(), backend.Params{"path": c.MkDir()})
 	c.Assert(err, IsNil)
 
-	clusterName, err := services.NewClusterName(services.ClusterNameSpecV2{
+	clusterName, err := types.NewClusterName(types.ClusterNameSpecV2{
 		ClusterName: "me.localhost",
 	})
 	c.Assert(err, IsNil)
 
-	authPreference, err := services.NewAuthPreference(services.AuthPreferenceSpecV2{
+	authPreference, err := types.NewAuthPreference(types.AuthPreferenceSpecV2{
 		Type: "local",
 	})
 	c.Assert(err, IsNil)
@@ -362,12 +362,12 @@ func (s *AuthInitSuite) TestCASigningAlg(c *C) {
 	}
 
 	verifyCAs := func(auth *Server, alg string) {
-		hostCAs, err := auth.GetCertAuthorities(services.HostCA, false)
+		hostCAs, err := auth.GetCertAuthorities(types.HostCA, false)
 		c.Assert(err, IsNil)
 		for _, ca := range hostCAs {
 			c.Assert(sshutils.GetSigningAlgName(ca), Equals, alg)
 		}
-		userCAs, err := auth.GetCertAuthorities(services.UserCA, false)
+		userCAs, err := auth.GetCertAuthorities(types.UserCA, false)
 		c.Assert(err, IsNil)
 		for _, ca := range userCAs {
 			c.Assert(sshutils.GetSigningAlgName(ca), Equals, alg)
@@ -436,7 +436,7 @@ func TestMigrateMFADevices(t *testing.T) {
 			)),
 		},
 	} {
-		u, err := services.NewUser(name)
+		u, err := types.NewUser(name)
 		require.NoError(t, err)
 		// Set a fake but valid bcrypt password hash.
 		u.SetLocalAuth(&types.LocalAuthSecrets{PasswordHash: fakePasswordHash})
@@ -458,7 +458,7 @@ func TestMigrateMFADevices(t *testing.T) {
 		require.NoError(t, err)
 		return []*types.MFADevice{d}
 	}
-	wantUsers := []services.User{
+	wantUsers := []types.User{
 		newUserWithAuth(t, "no-mfa-user", &types.LocalAuthSecrets{PasswordHash: fakePasswordHash}),
 		newUserWithAuth(t, "totp-user", &types.LocalAuthSecrets{
 			PasswordHash: fakePasswordHash,
@@ -497,8 +497,8 @@ func TestMigrateMFADevices(t *testing.T) {
 	require.Empty(t, cmp.Diff(users, wantUsers, cmpOpts...))
 }
 
-func newUserWithAuth(t *testing.T, name string, auth *types.LocalAuthSecrets) services.User {
-	u, err := services.NewUser(name)
+func newUserWithAuth(t *testing.T, name string, auth *types.LocalAuthSecrets) types.User {
+	u, err := types.NewUser(name)
 	require.NoError(t, err)
 	u.SetLocalAuth(auth)
 	return u
