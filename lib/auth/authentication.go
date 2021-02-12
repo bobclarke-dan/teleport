@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package types contains all types and logic required by the Teleport API.
 
-package services
+package auth
 
 import (
 	"bytes"

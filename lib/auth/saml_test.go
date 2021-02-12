@@ -18,12 +18,15 @@ package auth
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	authority "github.com/gravitational/teleport/lib/auth/testauthority"
 	"github.com/gravitational/teleport/lib/backend"
 	"github.com/gravitational/teleport/lib/backend/lite"
+	"github.com/gravitational/teleport/lib/defaults"
+	"github.com/gravitational/teleport/lib/fixtures"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
 
@@ -86,4 +89,24 @@ func (s *SAMLSuite) TestCreateSAMLUser(c *check.C) {
 	s.c.Advance(2 * time.Minute)
 	_, err = s.a.GetUser("foo@example.com", false)
 	c.Assert(err, check.NotNil)
+}
+
+func (s *SAMLSuite) TestParseFromMetadata(c *check.C) {
+	input := fixtures.SAMLOktaConnectorV2
+
+	decoder := kyaml.NewYAMLOrJSONDecoder(strings.NewReader(input), defaults.LookaheadBufSize)
+	var raw UnknownResource
+	err := decoder.Decode(&raw)
+	c.Assert(err, check.IsNil)
+
+	oc, err := UnmarshalSAMLConnector(raw.Raw)
+	c.Assert(err, check.IsNil)
+	err = ValidateSAMLConnector(oc)
+	c.Assert(err, check.IsNil)
+	c.Assert(oc.GetIssuer(), check.Equals, "http://www.okta.com/exkafftca6RqPVgyZ0h7")
+	c.Assert(oc.GetSSO(), check.Equals, "https://dev-813354.oktapreview.com/app/gravitationaldev813354_teleportsaml_1/exkafftca6RqPVgyZ0h7/sso/saml")
+	c.Assert(oc.GetAssertionConsumerService(), check.Equals, "https://localhost:3080/v1/webapi/saml/acs")
+	c.Assert(oc.GetAudience(), check.Equals, "https://localhost:3080/v1/webapi/saml/acs")
+	c.Assert(oc.GetSigningKeyPair(), check.NotNil)
+	c.Assert(oc.GetAttributes(), check.DeepEquals, []string{"groups"})
 }

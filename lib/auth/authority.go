@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package services
+package auth
 
 import (
 	"crypto"
@@ -39,16 +39,16 @@ import (
 
 // NewJWTAuthority creates and returns a services.CertAuthority with a new
 // key pair.
-func NewJWTAuthority(clusterName string) (CertAuthority, error) {
+func NewJWTAuthority(clusterName string) (types.CertAuthority, error) {
 	var err error
-	var keyPair JWTKeyPair
+	var keyPair types.JWTKeyPair
 	if keyPair.PublicKey, keyPair.PrivateKey, err = jwt.GenerateKeyPair(); err != nil {
 		return nil, trace.Wrap(err)
 	}
 	return types.NewCertAuthority(types.CertAuthoritySpecV2{
 		Type:        types.JWTSigner,
 		ClusterName: clusterName,
-		JWTKeyPairs: []JWTKeyPair{keyPair},
+		JWTKeyPairs: []types.JWTKeyPair{keyPair},
 	}), nil
 }
 
@@ -56,7 +56,7 @@ func NewJWTAuthority(clusterName string) (CertAuthority, error) {
 // Replaced by types.NewCertAuthority.
 // DELETE in 7.0.0
 func NewCertAuthority(
-	caType CertAuthType,
+	caType types.CertAuthType,
 	clusterName string,
 	signingKeys [][]byte,
 	checkingKeys [][]byte,
@@ -74,12 +74,12 @@ func NewCertAuthority(
 }
 
 // ValidateCertAuthority validates the CertAuthority
-func ValidateCertAuthority(ca CertAuthority) (err error) {
+func ValidateCertAuthority(ca types.CertAuthority) (err error) {
 	if err = ca.CheckAndSetDefaults(); err != nil {
 		return trace.Wrap(err)
 	}
 	switch ca.GetType() {
-	case UserCA, HostCA:
+	case types.UserCA, types.HostCA:
 		err = checkUserOrHostCA(ca)
 	case types.JWTSigner:
 		err = checkJWTKeys(ca)
@@ -89,7 +89,7 @@ func ValidateCertAuthority(ca CertAuthority) (err error) {
 	return trace.Wrap(err)
 }
 
-func checkUserOrHostCA(ca CertAuthority) error {
+func checkUserOrHostCA(ca types.CertAuthority) error {
 	if len(ca.GetCheckingKeys()) == 0 {
 		return trace.BadParameter("certificate authority missing SSH public keys")
 	}
@@ -110,7 +110,7 @@ func checkUserOrHostCA(ca CertAuthority) error {
 	return trace.Wrap(err)
 }
 
-func checkJWTKeys(ca CertAuthority) error {
+func checkJWTKeys(ca types.CertAuthority) error {
 	// Check that some JWT keys have been set on the CA.
 	if len(ca.GetJWTKeyPairs()) == 0 {
 		return trace.BadParameter("missing JWT CA")
@@ -146,7 +146,7 @@ func checkJWTKeys(ca CertAuthority) error {
 }
 
 // GetJWTSigner returns the active JWT key used to sign tokens.
-func GetJWTSigner(ca CertAuthority, clock clockwork.Clock) (*jwt.Key, error) {
+func GetJWTSigner(ca types.CertAuthority, clock clockwork.Clock) (*jwt.Key, error) {
 	if len(ca.GetJWTKeyPairs()) == 0 {
 		return nil, trace.BadParameter("no JWT keypairs found")
 	}
@@ -167,7 +167,7 @@ func GetJWTSigner(ca CertAuthority, clock clockwork.Clock) (*jwt.Key, error) {
 }
 
 // GetTLSCerts returns TLS certificates from CA
-func GetTLSCerts(ca CertAuthority) [][]byte {
+func GetTLSCerts(ca types.CertAuthority) [][]byte {
 	pairs := ca.GetTLSKeyPairs()
 	out := make([][]byte, len(pairs))
 	for i, pair := range pairs {

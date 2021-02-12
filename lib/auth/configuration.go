@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package services
+package auth
 
 // ClusterConfiguration stores the cluster configuration in the backend. All
 // the resources modified by this interface can only have a single instance

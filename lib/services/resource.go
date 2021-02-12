@@ -127,40 +127,40 @@ func ParseShortcut(in string) (string, error) {
 		return "", trace.BadParameter("missing resource name")
 	}
 	switch strings.ToLower(in) {
-	case KindRole, "roles":
-		return KindRole, nil
-	case KindNamespace, "namespaces", "ns":
-		return KindNamespace, nil
-	case KindAuthServer, "auth_servers", "auth":
-		return KindAuthServer, nil
-	case KindProxy, "proxies":
-		return KindProxy, nil
-	case KindNode, "nodes":
-		return KindNode, nil
-	case KindOIDCConnector:
-		return KindOIDCConnector, nil
-	case KindSAMLConnector:
-		return KindSAMLConnector, nil
-	case KindGithubConnector:
-		return KindGithubConnector, nil
-	case KindConnectors, "connector":
-		return KindConnectors, nil
-	case KindUser, "users":
-		return KindUser, nil
-	case KindCertAuthority, "cert_authorities", "cas":
-		return KindCertAuthority, nil
-	case KindReverseTunnel, "reverse_tunnels", "rts":
-		return KindReverseTunnel, nil
-	case KindTrustedCluster, "tc", "cluster", "clusters":
-		return KindTrustedCluster, nil
-	case KindClusterAuthPreference, "cluster_authentication_preferences", "cap":
-		return KindClusterAuthPreference, nil
-	case KindRemoteCluster, "remote_clusters", "rc", "rcs":
-		return KindRemoteCluster, nil
-	case KindSemaphore, "semaphores", "sem", "sems":
-		return KindSemaphore, nil
-	case KindKubeService, "kube_services":
-		return KindKubeService, nil
+	case types.KindRole, "roles":
+		return types.KindRole, nil
+	case types.KindNamespace, "namespaces", "ns":
+		return types.KindNamespace, nil
+	case types.KindAuthServer, "auth_servers", "auth":
+		return types.KindAuthServer, nil
+	case types.KindProxy, "proxies":
+		return types.KindProxy, nil
+	case types.KindNode, "nodes":
+		return types.KindNode, nil
+	case types.KindOIDCConnector:
+		return types.KindOIDCConnector, nil
+	case types.KindSAMLConnector:
+		return types.KindSAMLConnector, nil
+	case types.KindGithubConnector:
+		return types.KindGithubConnector, nil
+	case types.KindConnectors, "connector":
+		return types.KindConnectors, nil
+	case types.KindUser, "users":
+		return types.KindUser, nil
+	case types.KindCertAuthority, "cert_authorities", "cas":
+		return types.KindCertAuthority, nil
+	case types.KindReverseTunnel, "reverse_tunnels", "rts":
+		return types.KindReverseTunnel, nil
+	case types.KindTrustedCluster, "tc", "cluster", "clusters":
+		return types.KindTrustedCluster, nil
+	case types.KindClusterAuthPreference, "cluster_authentication_preferences", "cap":
+		return types.KindClusterAuthPreference, nil
+	case types.KindRemoteCluster, "remote_clusters", "rc", "rcs":
+		return types.KindRemoteCluster, nil
+	case types.KindSemaphore, "semaphores", "sem", "sems":
+		return types.KindSemaphore, nil
+	case types.KindKubeService, "kube_services":
+		return types.KindKubeService, nil
 	}
 	return "", trace.BadParameter("unsupported resource: %q - resources should be expressed as 'type/name', for example 'connector/github'", in)
 }

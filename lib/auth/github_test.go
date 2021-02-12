@@ -162,6 +162,91 @@ func (s *GithubSuite) TestValidateGithubAuthCallbackEventsEmitted(c *check.C) {
 	c.Assert(s.mockEmitter.LastEvent().GetCode(), check.Equals, events.UserSSOLoginFailureCode)
 }
 
+func (g *GithubSuite) TestUnmarshal(c *check.C) {
+	data := []byte(`{"kind": "github",
+"version": "v3",
+"metadata": {
+  "name": "github"
+},
+"spec": {
+  "client_id": "aaa",
+  "client_secret": "bbb",
+  "display": "Github",
+  "redirect_url": "https://localhost:3080/v1/webapi/github/callback",
+  "teams_to_logins": [{
+    "organization": "gravitational",
+    "team": "admins",
+    "logins": ["admin"]
+  }]
+}}`)
+	connector, err := UnmarshalGithubConnector(data)
+	c.Assert(err, check.IsNil)
+	expected := NewGithubConnector("github", GithubConnectorSpecV3{
+		ClientID:     "aaa",
+		ClientSecret: "bbb",
+		RedirectURL:  "https://localhost:3080/v1/webapi/github/callback",
+		Display:      "Github",
+		TeamsToLogins: []TeamMapping{
+			{
+				Organization: "gravitational",
+				Team:         "admins",
+				Logins:       []string{"admin"},
+			},
+		},
+	})
+	c.Assert(expected, check.DeepEquals, connector)
+}
+
+func (g *GithubSuite) TestMapClaims(c *check.C) {
+	connector := NewGithubConnector("github", GithubConnectorSpecV3{
+		ClientID:     "aaa",
+		ClientSecret: "bbb",
+		RedirectURL:  "https://localhost:3080/v1/webapi/github/callback",
+		Display:      "Github",
+		TeamsToLogins: []TeamMapping{
+			{
+				Organization: "gravitational",
+				Team:         "admins",
+				Logins:       []string{"admin", "dev"},
+				KubeGroups:   []string{"system:masters", "kube-devs"},
+				KubeUsers:    []string{"alice@example.com"},
+			},
+			{
+				Organization: "gravitational",
+				Team:         "devs",
+				Logins:       []string{"dev", "test"},
+				KubeGroups:   []string{"kube-devs"},
+			},
+		},
+	})
+	logins, kubeGroups, kubeUsers := connector.MapClaims(GithubClaims{
+		OrganizationToTeams: map[string][]string{
+			"gravitational": {"admins"},
+		},
+	})
+	c.Assert(logins, check.DeepEquals, []string{"admin", "dev"})
+	c.Assert(kubeGroups, check.DeepEquals, []string{"system:masters", "kube-devs"})
+	c.Assert(kubeUsers, check.DeepEquals, []string{"alice@example.com"})
+
+	logins, kubeGroups, kubeUsers = connector.MapClaims(GithubClaims{
+		OrganizationToTeams: map[string][]string{
+			"gravitational": {"devs"},
+		},
+	})
+	c.Assert(logins, check.DeepEquals, []string{"dev", "test"})
+	c.Assert(kubeGroups, check.DeepEquals, []string{"kube-devs"})
+	c.Assert(kubeUsers, check.DeepEquals, []string(nil))
+
+	logins, kubeGroups, kubeUsers = connector.MapClaims(GithubClaims{
+		OrganizationToTeams: map[string][]string{
+			"gravitational": {"admins", "devs"},
+		},
+	})
+	c.Assert(logins, check.DeepEquals, []string{"admin", "dev", "test"})
+	c.Assert(kubeGroups, check.DeepEquals, []string{"system:masters", "kube-devs"})
+	c.Assert(kubeUsers, check.DeepEquals, []string{"alice@example.com"})
+}
+
 type mockedGithubManager struct {
 	mockValidateGithubAuthCallback func(q url.Values) (*githubAuthResponse, error)
 }

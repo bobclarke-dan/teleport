@@ -28,6 +28,7 @@ import (
 	"github.com/gravitational/teleport/lib/backend/lite"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
+	"github.com/gravitational/teleport/lib/fixtures"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 
@@ -238,6 +239,61 @@ func (s *ResetPasswordTokenTest) TestFormatAccountName(c *check.C) {
 		accountName, err := formatAccountName(tt.inDebugAuth, "foo", "00000000-0000-0000-0000-000000000000")
 		c.Assert(err != nil, check.Equals, tt.outError, check.Commentf("Test case: %q.", tt.description))
 		c.Assert(accountName, check.Equals, tt.outAccountName, check.Commentf("Test case: %q.", tt.description))
+	}
+}
+
+func (r *ResetPasswordTokenSuite) TestUnmarshal(c *check.C) {
+	created, err := time.Parse(time.RFC3339, "2020-01-14T18:52:39.523076855Z")
+	c.Assert(err, check.IsNil)
+
+	type testCase struct {
+		description string
+		input       string
+		expected    ResetPasswordToken
+	}
+
+	testCases := []testCase{
+		{
+			description: "simple case",
+			input: `
+        {
+          "kind": "user_token",
+          "version": "v3",
+          "metadata": {
+            "name": "tokenId"
+          },
+          "spec": {
+            "user": "example@example.com",
+            "created": "2020-01-14T18:52:39.523076855Z",
+            "url": "https://localhost"
+          }
+        }
+      `,
+			expected: &ResetPasswordTokenV3{
+				Kind:    KindResetPasswordToken,
+				Version: V3,
+				Metadata: Metadata{
+					Name: "tokenId",
+				},
+				Spec: ResetPasswordTokenSpecV3{
+					Created: created,
+					User:    "example@example.com",
+					URL:     "https://localhost",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		comment := check.Commentf("test case %q", tc.description)
+		out, err := UnmarshalResetPasswordToken([]byte(tc.input))
+		c.Assert(err, check.IsNil, comment)
+		fixtures.DeepCompare(c, tc.expected, out)
+		data, err := MarshalResetPasswordToken(out)
+		c.Assert(err, check.IsNil, comment)
+		out2, err := UnmarshalResetPasswordToken(data)
+		c.Assert(err, check.IsNil, comment)
+		fixtures.DeepCompare(c, tc.expected, out2)
 	}
 }
 

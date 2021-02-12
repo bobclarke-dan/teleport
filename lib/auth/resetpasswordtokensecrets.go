@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package services
+package auth
 
 import (
 	"fmt"
 
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 )
@@ -41,12 +42,12 @@ const ResetPasswordTokenSecretsSpecV3Template = `{
   }`
 
 // UnmarshalResetPasswordTokenSecrets unmarshals the ResetPasswordTokenSecrets resource from JSON.
-func UnmarshalResetPasswordTokenSecrets(bytes []byte, opts ...MarshalOption) (ResetPasswordTokenSecrets, error) {
+func UnmarshalResetPasswordTokenSecrets(bytes []byte, opts ...MarshalOption) (types.ResetPasswordTokenSecrets, error) {
 	if len(bytes) == 0 {
 		return nil, trace.BadParameter("missing resource data")
 	}
 
-	var secrets ResetPasswordTokenSecretsV3
+	var secrets types.ResetPasswordTokenSecretsV3
 	schema := fmt.Sprintf(V2SchemaTemplate, MetadataSchema, ResetPasswordTokenSecretsSpecV3Template, DefaultDefinitions)
 	err := utils.UnmarshalWithSchema(schema, &secrets, bytes)
 	if err != nil {
@@ -57,6 +58,6 @@ func UnmarshalResetPasswordTokenSecrets(bytes []byte, opts ...MarshalOption) (Re
 }
 
 // MarshalResetPasswordTokenSecrets marshals the ResetPasswordTokenSecrets resource to JSON.
-func MarshalResetPasswordTokenSecrets(secrets ResetPasswordTokenSecrets, opts ...MarshalOption) ([]byte, error) {
+func MarshalResetPasswordTokenSecrets(secrets types.ResetPasswordTokenSecrets, opts ...MarshalOption) ([]byte, error) {
 	return utils.FastMarshal(secrets)
 }

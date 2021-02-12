@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package services
+package auth
 
 import "github.com/gravitational/teleport/api/types"
 
-// Services collects all services
+// Services collects all auth services
 type Services interface {
 	UsersService
 	Provisioner

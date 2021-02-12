@@ -14,11 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package services implements API services exposed by Teleport:
-// * presence service that takes care of heartbeats
-// * web service that takes care of web logins
-// * ca service - certificate authorities
-package services
+package auth
 
 import (
 	"context"
@@ -37,20 +33,20 @@ import (
 // UserGetter is responsible for getting users
 type UserGetter interface {
 	// GetUser returns a user by name
-	GetUser(user string, withSecrets bool) (User, error)
+	GetUser(user string, withSecrets bool) (types.User, error)
 }
 
 // UsersService is responsible for basic user management
 type UsersService interface {
 	UserGetter
 	// UpdateUser updates an existing user.
-	UpdateUser(ctx context.Context, user User) error
+	UpdateUser(ctx context.Context, user types.User) error
 	// UpsertUser updates parameters about user
-	UpsertUser(user User) error
+	UpsertUser(user types.User) error
 	// DeleteUser deletes a user with all the keys from the backend
 	DeleteUser(ctx context.Context, user string) error
 	// GetUsers returns a list of users registered with the local auth server
-	GetUsers(withSecrets bool) ([]User, error)
+	GetUsers(withSecrets bool) ([]types.User, error)
 }
 
 // ServerUsers manages users on auth server
@@ -64,7 +60,7 @@ type ServerUsers interface {
 // Identity is responsible for managing user entries and external identities
 type Identity interface {
 	// CreateUser creates user, only if the user entry does not exist
-	CreateUser(user User) error
+	CreateUser(user types.User) error
 
 	// UsersService implements most methods
 	UsersService
@@ -81,14 +77,14 @@ type Identity interface {
 
 	// GetUserByOIDCIdentity returns a user by its specified OIDC Identity, returns first
 	// user specified with this identity
-	GetUserByOIDCIdentity(id ExternalIdentity) (User, error)
+	GetUserByOIDCIdentity(id types.ExternalIdentity) (types.User, error)
 
 	// GetUserBySAMLIdentity returns a user by its specified OIDC Identity, returns first
 	// user specified with this identity
-	GetUserBySAMLIdentity(id ExternalIdentity) (User, error)
+	GetUserBySAMLIdentity(id types.ExternalIdentity) (types.User, error)
 
 	// GetUserByGithubIdentity returns a user by its specified Github identity
-	GetUserByGithubIdentity(id ExternalIdentity) (User, error)
+	GetUserByGithubIdentity(id types.ExternalIdentity) (types.User, error)
 
 	// UpsertPasswordHash upserts user password hash
 	UpsertPasswordHash(user string, hash []byte) error
@@ -136,16 +132,16 @@ type Identity interface {
 	DeleteMFADevice(ctx context.Context, user, id string) error
 
 	// UpsertOIDCConnector upserts OIDC Connector
-	UpsertOIDCConnector(connector OIDCConnector) error
+	UpsertOIDCConnector(connector types.OIDCConnector) error
 
 	// DeleteOIDCConnector deletes OIDC Connector
 	DeleteOIDCConnector(connectorID string) error
 
 	// GetOIDCConnector returns OIDC connector data, withSecrets adds or removes client secret from return results
-	GetOIDCConnector(id string, withSecrets bool) (OIDCConnector, error)
+	GetOIDCConnector(id string, withSecrets bool) (types.OIDCConnector, error)
 
 	// GetOIDCConnectors returns registered connectors, withSecrets adds or removes client secret from return results
-	GetOIDCConnectors(withSecrets bool) ([]OIDCConnector, error)
+	GetOIDCConnectors(withSecrets bool) ([]types.OIDCConnector, error)
 
 	// CreateOIDCAuthRequest creates new auth request
 	CreateOIDCAuthRequest(req OIDCAuthRequest, ttl time.Duration) error
@@ -154,19 +150,19 @@ type Identity interface {
 	GetOIDCAuthRequest(stateToken string) (*OIDCAuthRequest, error)
 
 	// CreateSAMLConnector creates SAML Connector
-	CreateSAMLConnector(connector SAMLConnector) error
+	CreateSAMLConnector(connector types.SAMLConnector) error
 
 	// UpsertSAMLConnector upserts SAML Connector
-	UpsertSAMLConnector(connector SAMLConnector) error
+	UpsertSAMLConnector(connector types.SAMLConnector) error
 
 	// DeleteSAMLConnector deletes OIDC Connector
 	DeleteSAMLConnector(connectorID string) error
 
 	// GetSAMLConnector returns OIDC connector data, withSecrets adds or removes secrets from return results
-	GetSAMLConnector(id string, withSecrets bool) (SAMLConnector, error)
+	GetSAMLConnector(id string, withSecrets bool) (types.SAMLConnector, error)
 
 	// GetSAMLConnectors returns registered connectors, withSecrets adds or removes secret from return results
-	GetSAMLConnectors(withSecrets bool) ([]SAMLConnector, error)
+	GetSAMLConnectors(withSecrets bool) ([]types.SAMLConnector, error)
 
 	// CreateSAMLAuthRequest creates new auth request
 	CreateSAMLAuthRequest(req SAMLAuthRequest, ttl time.Duration) error
@@ -175,16 +171,16 @@ type Identity interface {
 	GetSAMLAuthRequest(id string) (*SAMLAuthRequest, error)
 
 	// CreateGithubConnector creates a new Github connector
-	CreateGithubConnector(connector GithubConnector) error
+	CreateGithubConnector(connector types.GithubConnector) error
 
 	// UpsertGithubConnector creates or updates a new Github connector
-	UpsertGithubConnector(connector GithubConnector) error
+	UpsertGithubConnector(connector types.GithubConnector) error
 
 	// GetGithubConnectors returns all configured Github connectors
-	GetGithubConnectors(withSecrets bool) ([]GithubConnector, error)
+	GetGithubConnectors(withSecrets bool) ([]types.GithubConnector, error)
 
 	// GetGithubConnector returns a Github connector by its name
-	GetGithubConnector(name string, withSecrets bool) (GithubConnector, error)
+	GetGithubConnector(name string, withSecrets bool) (types.GithubConnector, error)
 
 	// DeleteGithubConnector deletes a Github connector by its name
 	DeleteGithubConnector(name string) error
@@ -196,22 +192,22 @@ type Identity interface {
 	GetGithubAuthRequest(stateToken string) (*GithubAuthRequest, error)
 
 	// CreateResetPasswordToken creates a token
-	CreateResetPasswordToken(ctx context.Context, resetPasswordToken ResetPasswordToken) (ResetPasswordToken, error)
+	CreateResetPasswordToken(ctx context.Context, resetPasswordToken types.ResetPasswordToken) (types.ResetPasswordToken, error)
 
 	// DeleteResetPasswordToken deletes a token
 	DeleteResetPasswordToken(ctx context.Context, tokenID string) error
 
 	// GetResetPasswordTokens returns tokens
-	GetResetPasswordTokens(ctx context.Context) ([]ResetPasswordToken, error)
+	GetResetPasswordTokens(ctx context.Context) ([]types.ResetPasswordToken, error)
 
 	// GetResetPasswordToken returns a token
-	GetResetPasswordToken(ctx context.Context, tokenID string) (ResetPasswordToken, error)
+	GetResetPasswordToken(ctx context.Context, tokenID string) (types.ResetPasswordToken, error)
 
 	// UpsertResetPasswordTokenSecrets upserts token secrets
-	UpsertResetPasswordTokenSecrets(ctx context.Context, secrets ResetPasswordTokenSecrets) error
+	UpsertResetPasswordTokenSecrets(ctx context.Context, secrets types.ResetPasswordTokenSecrets) error
 
 	// GetResetPasswordTokenSecrets returns token secrets
-	GetResetPasswordTokenSecrets(ctx context.Context, tokenID string) (ResetPasswordTokenSecrets, error)
+	GetResetPasswordTokenSecrets(ctx context.Context, tokenID string) (types.ResetPasswordTokenSecrets, error)
 }
 
 // ServerIdentity represents the Identity on the auth server
@@ -258,11 +254,11 @@ type ServerWebTokens interface {
 // AppSession defines application session features.
 type AppSession interface {
 	// GetAppSession gets an application web session.
-	GetAppSession(context.Context, GetAppSessionRequest) (WebSession, error)
+	GetAppSession(context.Context, types.GetAppSessionRequest) (types.WebSession, error)
 	// GetAppSessions gets all application web sessions.
-	GetAppSessions(context.Context) ([]WebSession, error)
+	GetAppSessions(context.Context) ([]types.WebSession, error)
 	// DeleteAppSession removes an application web session.
-	DeleteAppSession(context.Context, DeleteAppSessionRequest) error
+	DeleteAppSession(context.Context, types.DeleteAppSessionRequest) error
 	// DeleteAllAppSessions removes all application web sessions.
 	DeleteAllAppSessions(context.Context) error
 }
@@ -272,7 +268,7 @@ type ServerAppSession interface {
 	AppSession
 
 	// UpsertAppSession upserts and application web session.
-	UpsertAppSession(context.Context, WebSession) error
+	UpsertAppSession(context.Context, types.WebSession) error
 }
 
 // VerifyPassword makes sure password satisfies our requirements (relaxed),
@@ -496,7 +492,7 @@ func (i *SAMLAuthRequest) Check() error {
 
 // Users represents a slice of users,
 // makes it sort compatible (sorts by username)
-type Users []User
+type Users []types.User
 
 func (u Users) Len() int {
 	return len(u)

@@ -326,3 +326,41 @@ func (s *Server) deleteResetPasswordTokens(ctx context.Context, username string)
 
 	return nil
 }
+
+// ResetPasswordTokenSpecV3Template is a template for V3 ResetPasswordToken JSON schema
+const ResetPasswordTokenSpecV3Template = `{
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+	  "user": {
+		"type": ["string"]
+	  },
+	  "created": {
+		"type": ["string"]
+	  },
+	  "url": {
+		"type": ["string"]
+	  }
+	}
+  }`
+
+// UnmarshalResetPasswordToken unmarshals the ResetPasswordToken resource from JSON.
+func UnmarshalResetPasswordToken(bytes []byte, opts ...MarshalOption) (types.ResetPasswordToken, error) {
+	if len(bytes) == 0 {
+		return nil, trace.BadParameter("missing resource data")
+	}
+
+	var token types.ResetPasswordTokenV3
+	schema := fmt.Sprintf(V2SchemaTemplate, MetadataSchema, ResetPasswordTokenSpecV3Template, DefaultDefinitions)
+	err := utils.UnmarshalWithSchema(schema, &token, bytes)
+	if err != nil {
+		return nil, trace.BadParameter(err.Error())
+	}
+
+	return &token, nil
+}
+
+// MarshalResetPasswordToken marshals the ResetPasswordToken resource to JSON.
+func MarshalResetPasswordToken(token types.ResetPasswordToken, opts ...MarshalOption) ([]byte, error) {
+	return utils.FastMarshal(token)
+}
