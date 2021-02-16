@@ -27,7 +27,8 @@ import (
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/asciitable"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/server"
 	libclient "github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/service"
@@ -112,7 +113,7 @@ func (c *TokenCommand) Initialize(app *kingpin.Application, config *service.Conf
 }
 
 // TryRun takes the CLI command as an argument (like "nodes ls") and executes it.
-func (c *TokenCommand) TryRun(cmd string, client auth.ClientI) (match bool, err error) {
+func (c *TokenCommand) TryRun(cmd string, client client.ClientI) (match bool, err error) {
 	switch cmd {
 	case c.tokenAdd.FullCommand():
 		err = c.Add(client)
@@ -127,7 +128,7 @@ func (c *TokenCommand) TryRun(cmd string, client auth.ClientI) (match bool, err 
 }
 
 // Add is called to execute "tokens add ..." command.
-func (c *TokenCommand) Add(client auth.ClientI) error {
+func (c *TokenCommand) Add(client client.ClientI) error {
 	// Parse string to see if it's a type of role that Teleport supports.
 	roles, err := teleport.ParseRoles(c.tokenType)
 	if err != nil {
@@ -143,7 +144,7 @@ func (c *TokenCommand) Add(client auth.ClientI) error {
 	}
 
 	// Generate token.
-	token, err := client.GenerateToken(context.TODO(), auth.GenerateTokenRequest{
+	token, err := client.GenerateToken(context.TODO(), server.GenerateTokenRequest{
 		Roles:  roles,
 		TTL:    c.ttl,
 		Token:  c.value,
@@ -236,7 +237,7 @@ func (c *TokenCommand) Add(client auth.ClientI) error {
 }
 
 // Del is called to execute "tokens del ..." command.
-func (c *TokenCommand) Del(client auth.ClientI) error {
+func (c *TokenCommand) Del(client client.ClientI) error {
 	if c.value == "" {
 		return trace.Errorf("Need an argument: token")
 	}
@@ -248,7 +249,7 @@ func (c *TokenCommand) Del(client auth.ClientI) error {
 }
 
 // List is called to execute "tokens ls" command.
-func (c *TokenCommand) List(client auth.ClientI) error {
+func (c *TokenCommand) List(client client.ClientI) error {
 	tokens, err := client.GetTokens()
 	if err != nil {
 		return trace.Wrap(err)
@@ -288,7 +289,7 @@ func (c *TokenCommand) List(client auth.ClientI) error {
 }
 
 // calculateCAPin returns the SPKI pin for the local cluster.
-func calculateCAPin(client auth.ClientI) (string, error) {
+func calculateCAPin(client client.ClientI) (string, error) {
 	localCA, err := client.GetClusterCACert()
 	if err != nil {
 		return "", trace.Wrap(err)

@@ -232,10 +232,6 @@ var (
 // namespace.go
 type SortedNamespaces = types.SortedNamespaces
 
-var (
-	IsValidNamespace = types.IsValidNamespace
-)
-
 // oidc.go
 type (
 	OIDCConnector       = types.OIDCConnector

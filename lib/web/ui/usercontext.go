@@ -17,6 +17,8 @@ limitations under the License.
 package ui
 
 import (
+	"github.com/gravitational/teleport/api/types"
+	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
@@ -87,19 +89,19 @@ type UserContext struct {
 	RequestableRoles []string `json:"requestableRoles"`
 }
 
-func getLogins(roleSet services.RoleSet) []string {
+func getLogins(roleSet auth.RoleSet) []string {
 	allowed := []string{}
 	denied := []string{}
 	for _, role := range roleSet {
-		denied = append(denied, role.GetLogins(services.Deny)...)
-		allowed = append(allowed, role.GetLogins(services.Allow)...)
+		denied = append(denied, role.GetLogins(types.Deny)...)
+		allowed = append(allowed, role.GetLogins(types.Allow)...)
 	}
 
 	allowed = utils.Deduplicate(allowed)
 	denied = utils.Deduplicate(denied)
 	userLogins := []string{}
 	for _, login := range allowed {
-		loginMatch, _ := services.MatchLogin(denied, login)
+		loginMatch, _ := auth.MatchLogin(denied, login)
 		if !loginMatch {
 			userLogins = append(userLogins, login)
 		}
@@ -108,7 +110,7 @@ func getLogins(roleSet services.RoleSet) []string {
 	return userLogins
 }
 
-func hasAccess(roleSet services.RoleSet, ctx *services.Context, kind string, verbs ...string) bool {
+func hasAccess(roleSet auth.RoleSet, ctx *auth.Context, kind string, verbs ...string) bool {
 	for _, verb := range verbs {
 		// Since this check occurs often and it does not imply the caller is trying
 		// to access any resource, silence any logging done on the proxy.
@@ -121,17 +123,17 @@ func hasAccess(roleSet services.RoleSet, ctx *services.Context, kind string, ver
 	return true
 }
 
-func newAccess(roleSet services.RoleSet, ctx *services.Context, kind string) access {
+func newAccess(roleSet auth.RoleSet, ctx *auth.Context, kind string) access {
 	return access{
-		List:   hasAccess(roleSet, ctx, kind, services.VerbList),
-		Read:   hasAccess(roleSet, ctx, kind, services.VerbRead),
-		Edit:   hasAccess(roleSet, ctx, kind, services.VerbUpdate),
-		Create: hasAccess(roleSet, ctx, kind, services.VerbCreate),
-		Delete: hasAccess(roleSet, ctx, kind, services.VerbDelete),
+		List:   hasAccess(roleSet, ctx, kind, types.VerbList),
+		Read:   hasAccess(roleSet, ctx, kind, types.VerbRead),
+		Edit:   hasAccess(roleSet, ctx, kind, types.VerbUpdate),
+		Create: hasAccess(roleSet, ctx, kind, types.VerbCreate),
+		Delete: hasAccess(roleSet, ctx, kind, types.VerbDelete),
 	}
 }
 
-func getAccessStrategy(roleset services.RoleSet) accessStrategy {
+func getAccessStrategy(roleset auth.RoleSet) accessStrategy {
 	strategy := services.RequestStrategyOptional
 	prompt := ""
 
@@ -156,8 +158,8 @@ func getAccessStrategy(roleset services.RoleSet) accessStrategy {
 }
 
 // NewUserContext returns user context
-func NewUserContext(user services.User, userRoles services.RoleSet) (*UserContext, error) {
-	ctx := &services.Context{User: user}
+func NewUserContext(user services.User, userRoles auth.RoleSet) (*UserContext, error) {
+	ctx := &auth.Context{User: user}
 	sessionAccess := newAccess(userRoles, ctx, services.KindSession)
 	roleAccess := newAccess(userRoles, ctx, services.KindRole)
 	authConnectors := newAccess(userRoles, ctx, services.KindAuthConnector)

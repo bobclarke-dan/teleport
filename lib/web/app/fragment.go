@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/httplib"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
@@ -40,7 +40,7 @@ type fragmentRequest struct {
 func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
 	switch r.Method {
 	case http.MethodGet:
-		nonce, err := utils.CryptoRandomHex(auth.TokenLenBytes)
+		nonce, err := utils.CryptoRandomHex(server.TokenLenBytes)
 		if err != nil {
 			h.log.WithError(err).Debugf("Failed to generate and encode random numbers.")
 			return trace.AccessDenied("access denied")

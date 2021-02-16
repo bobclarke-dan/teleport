@@ -33,10 +33,12 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/api/client"
+	apiclient "github.com/gravitational/teleport/api/client"
 	"github.com/gravitational/teleport/api/client/proto"
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/resource"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
 	"github.com/gravitational/teleport/lib/services"
@@ -126,7 +128,7 @@ func (proxy *ProxyClient) GetLeafClusters(ctx context.Context) ([]services.Remot
 		return nil, trace.Wrap(err)
 	}
 
-	remoteClusters, err := clt.GetRemoteClusters(services.SkipValidation())
+	remoteClusters, err := clt.GetRemoteClusters(resource.SkipValidation())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -282,7 +284,7 @@ func (proxy *ProxyClient) NewWatcher(ctx context.Context, watch services.Watch) 
 // If no labels are passed, ALL nodes are returned.
 func (proxy *ProxyClient) FindServersByLabels(ctx context.Context, namespace string, labels map[string]string) ([]services.Server, error) {
 	if namespace == "" {
-		return nil, trace.BadParameter(auth.MissingNamespaceError)
+		return nil, trace.BadParameter(client.MissingNamespaceError)
 	}
 	nodes := make([]services.Server, 0)
 	site, err := proxy.CurrentClusterAccessPoint(ctx, false)
@@ -290,7 +292,7 @@ func (proxy *ProxyClient) FindServersByLabels(ctx context.Context, namespace str
 		return nil, trace.Wrap(err)
 	}
 
-	siteNodes, err := site.GetNodes(namespace, services.SkipValidation())
+	siteNodes, err := site.GetNodes(namespace, resource.SkipValidation())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -311,7 +313,7 @@ func (proxy *ProxyClient) GetAppServers(ctx context.Context, namespace string) (
 		return nil, trace.Wrap(err)
 	}
 
-	servers, err := authClient.GetAppServers(ctx, namespace, services.SkipValidation())
+	servers, err := authClient.GetAppServers(ctx, namespace, resource.SkipValidation())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -325,7 +327,7 @@ func (proxy *ProxyClient) GetDatabaseServers(ctx context.Context, namespace stri
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	servers, err := authClient.GetDatabaseServers(ctx, namespace, services.SkipValidation())
+	servers, err := authClient.GetDatabaseServers(ctx, namespace, resource.SkipValidation())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -362,7 +364,7 @@ func (proxy *ProxyClient) ClusterAccessPoint(ctx context.Context, clusterName st
 //
 // if 'quiet' is set to true, no errors will be printed to stdout, otherwise
 // any connection errors are visible to a user.
-func (proxy *ProxyClient) ConnectToCurrentCluster(ctx context.Context, quiet bool) (auth.ClientI, error) {
+func (proxy *ProxyClient) ConnectToCurrentCluster(ctx context.Context, quiet bool) (client.ClientI, error) {
 	cluster, err := proxy.currentCluster()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -375,7 +377,7 @@ func (proxy *ProxyClient) ConnectToCurrentCluster(ctx context.Context, quiet boo
 //
 // if 'quiet' is set to true, no errors will be printed to stdout, otherwise
 // any connection errors are visible to a user.
-func (proxy *ProxyClient) ConnectToRootCluster(ctx context.Context, quiet bool) (auth.ClientI, error) {
+func (proxy *ProxyClient) ConnectToRootCluster(ctx context.Context, quiet bool) (client.ClientI, error) {
 	clusterName, err := proxy.RootClusterName()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -388,13 +390,13 @@ func (proxy *ProxyClient) ConnectToRootCluster(ctx context.Context, quiet bool) 
 //
 // if 'quiet' is set to true, no errors will be printed to stdout, otherwise
 // any connection errors are visible to a user.
-func (proxy *ProxyClient) ConnectToCluster(ctx context.Context, clusterName string, quiet bool) (auth.ClientI, error) {
-	dialer := auth.ContextDialerFunc(func(ctx context.Context, network, _ string) (net.Conn, error) {
+func (proxy *ProxyClient) ConnectToCluster(ctx context.Context, clusterName string, quiet bool) (client.ClientI, error) {
+	dialer := client.ContextDialerFunc(func(ctx context.Context, network, _ string) (net.Conn, error) {
 		return proxy.dialAuthServer(ctx, clusterName)
 	})
 
 	if proxy.teleportClient.SkipLocalAuth {
-		return auth.NewClient(client.Config{
+		return client.New(apiclient.Config{
 			Dialer: dialer,
 			TLS:    proxy.teleportClient.TLS,
 		})
@@ -409,7 +411,7 @@ func (proxy *ProxyClient) ConnectToCluster(ctx context.Context, clusterName stri
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to generate client TLS config")
 	}
-	clt, err := auth.NewClient(client.Config{
+	clt, err := client.New(apiclient.Config{
 		Dialer: dialer,
 		TLS:    tlsConfig,
 	})

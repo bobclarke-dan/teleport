@@ -25,6 +25,8 @@ import (
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
+	authclient "github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/resource"
 	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/service"
@@ -37,7 +39,7 @@ import (
 )
 
 // ResourceCreateHandler is the generic implementation of a resource creation handler
-type ResourceCreateHandler func(auth.ClientI, services.UnknownResource) error
+type ResourceCreateHandler func(authclient.ClientI, resource.UnknownResource) error
 
 // ResourceKind is the string form of a resource, i.e. "oidc"
 type ResourceKind string
@@ -46,8 +48,8 @@ type ResourceKind string
 // Teleport resources
 type ResourceCommand struct {
 	config      *service.Config
-	ref         services.Ref
-	refs        services.Refs
+	ref         resource.Ref
+	refs        resource.Refs
 	format      string
 	namespace   string
 	withSecrets bool
@@ -123,7 +125,7 @@ func (rc *ResourceCommand) Initialize(app *kingpin.Application, config *service.
 
 // TryRun takes the CLI command as an argument (like "auth gen") and executes it
 // or returns match=false if 'cmd' does not belong to it
-func (rc *ResourceCommand) TryRun(cmd string, client auth.ClientI) (match bool, err error) {
+func (rc *ResourceCommand) TryRun(cmd string, client authclient.ClientI) (match bool, err error) {
 	switch cmd {
 	// tctl get
 	case rc.getCmd.FullCommand():
@@ -150,12 +152,12 @@ func (rc *ResourceCommand) IsDeleteSubcommand(cmd string) bool {
 
 // GetRef returns the reference (basically type/name pair) of the resource
 // the command is operating on
-func (rc *ResourceCommand) GetRef() services.Ref {
+func (rc *ResourceCommand) GetRef() resource.Ref {
 	return rc.ref
 }
 
 // Get prints one or many resources of a certain type
-func (rc *ResourceCommand) Get(client auth.ClientI) error {
+func (rc *ResourceCommand) Get(client authclient.ClientI) error {
 	if rc.refs.IsAll() {
 		return rc.GetAll(client)
 	}
@@ -181,7 +183,7 @@ func (rc *ResourceCommand) Get(client auth.ClientI) error {
 	return trace.BadParameter("unsupported format")
 }
 
-func (rc *ResourceCommand) GetMany(client auth.ClientI) error {
+func (rc *ResourceCommand) GetMany(client authclient.ClientI) error {
 	if rc.format != teleport.YAML {
 		return trace.BadParameter("mixed resource types only support YAML formatting")
 	}
@@ -200,22 +202,22 @@ func (rc *ResourceCommand) GetMany(client auth.ClientI) error {
 	return nil
 }
 
-func (rc *ResourceCommand) GetAll(client auth.ClientI) error {
+func (rc *ResourceCommand) GetAll(client authclient.ClientI) error {
 	rc.withSecrets = true
-	allKinds := services.GetResourceMarshalerKinds()
-	allRefs := make([]services.Ref, 0, len(allKinds))
+	allKinds := resource.GetResourceMarshalerKinds()
+	allRefs := make([]resource.Ref, 0, len(allKinds))
 	for _, kind := range allKinds {
-		ref := services.Ref{
+		ref := resource.Ref{
 			Kind: kind,
 		}
 		allRefs = append(allRefs, ref)
 	}
-	rc.refs = services.Refs(allRefs)
+	rc.refs = resource.Refs(allRefs)
 	return rc.GetMany(client)
 }
 
 // Create updates or inserts one or many resources
-func (rc *ResourceCommand) Create(client auth.ClientI) (err error) {
+func (rc *ResourceCommand) Create(client authclient.ClientI) (err error) {
 	var reader io.Reader
 	if rc.filename == "" {
 		reader = os.Stdin
@@ -230,7 +232,7 @@ func (rc *ResourceCommand) Create(client auth.ClientI) (err error) {
 	decoder := kyaml.NewYAMLOrJSONDecoder(reader, defaults.LookaheadBufSize)
 	count := 0
 	for {
-		var raw services.UnknownResource
+		var raw resource.UnknownResource
 		err := decoder.Decode(&raw)
 		if err != nil {
 			if err == io.EOF {
@@ -264,8 +266,8 @@ func (rc *ResourceCommand) Create(client auth.ClientI) (err error) {
 }
 
 // createTrustedCluster implements `tctl create cluster.yaml` command
-func (rc *ResourceCommand) createTrustedCluster(client auth.ClientI, raw services.UnknownResource) error {
-	tc, err := services.UnmarshalTrustedCluster(raw.Raw)
+func (rc *ResourceCommand) createTrustedCluster(client authclient.ClientI, raw resource.UnknownResource) error {
+	tc, err := resource.UnmarshalTrustedCluster(raw.Raw)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -302,8 +304,8 @@ func (rc *ResourceCommand) createTrustedCluster(client auth.ClientI, raw service
 }
 
 // createCertAuthority creates certificate authority
-func (rc *ResourceCommand) createCertAuthority(client auth.ClientI, raw services.UnknownResource) error {
-	certAuthority, err := services.UnmarshalCertAuthority(raw.Raw)
+func (rc *ResourceCommand) createCertAuthority(client authclient.ClientI, raw resource.UnknownResource) error {
+	certAuthority, err := resource.UnmarshalCertAuthority(raw.Raw)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -315,8 +317,8 @@ func (rc *ResourceCommand) createCertAuthority(client auth.ClientI, raw services
 }
 
 // createGithubConnector creates a Github connector
-func (rc *ResourceCommand) createGithubConnector(client auth.ClientI, raw services.UnknownResource) error {
-	connector, err := services.UnmarshalGithubConnector(raw.Raw)
+func (rc *ResourceCommand) createGithubConnector(client authclient.ClientI, raw resource.UnknownResource) error {
+	connector, err := resource.UnmarshalGithubConnector(raw.Raw)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -339,8 +341,8 @@ func (rc *ResourceCommand) createGithubConnector(client auth.ClientI, raw servic
 }
 
 // createUser implements 'tctl create user.yaml' command.
-func (rc *ResourceCommand) createUser(client auth.ClientI, raw services.UnknownResource) error {
-	user, err := services.UnmarshalUser(raw.Raw)
+func (rc *ResourceCommand) createUser(client authclient.ClientI, raw resource.UnknownResource) error {
+	user, err := resource.UnmarshalUser(raw.Raw)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -377,7 +379,7 @@ func (rc *ResourceCommand) createUser(client auth.ClientI, raw services.UnknownR
 }
 
 // Delete deletes resource by name
-func (rc *ResourceCommand) Delete(client auth.ClientI) (err error) {
+func (rc *ResourceCommand) Delete(client authclient.ClientI) (err error) {
 	if rc.ref.Kind == "" || rc.ref.Name == "" {
 		return trace.BadParameter("provide a full resource name to delete, for example:\n$ tctl rm cluster/east\n")
 	}
@@ -451,7 +453,7 @@ func (rc *ResourceCommand) Delete(client auth.ClientI) (err error) {
 }
 
 // Update updates select resource fields: expiry and labels
-func (rc *ResourceCommand) Update(clt auth.ClientI) error {
+func (rc *ResourceCommand) Update(clt authclient.ClientI) error {
 	if rc.ref.Kind == "" || rc.ref.Name == "" {
 		return trace.BadParameter("provide a full resource name to update, for example:\n$ tctl update rc/remote --set-labels=env=prod\n")
 	}
@@ -510,21 +512,21 @@ func (rc *ResourceCommand) IsForced() bool {
 }
 
 // getCollection lists all resources of a given type
-func (rc *ResourceCommand) getCollection(client auth.ClientI) (c ResourceCollection, err error) {
+func (rc *ResourceCommand) getCollection(client authclient.ClientI) (c ResourceCollection, err error) {
 	if rc.ref.Kind == "" {
 		return nil, trace.BadParameter("specify resource to list, e.g. 'tctl get roles'")
 	}
 	switch rc.ref.Kind {
 	// load user(s)
 	case services.KindUser:
-		var users services.Users
+		var users auth.Users
 		// just one?
 		if !rc.ref.IsEmpty() {
 			user, err := client.GetUser(rc.ref.Name, rc.withSecrets)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}
-			users = services.Users{user}
+			users = auth.Users{user}
 			// all of them?
 		} else {
 			users, err = client.GetUsers(rc.withSecrets)

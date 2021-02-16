@@ -205,7 +205,7 @@ func (s *Server) isAuditedAtProxy() bool {
 		return false
 	}
 
-	isRecordAtProxy := services.IsRecordAtProxy(clusterConfig.GetSessionRecording())
+	isRecordAtProxy := auth.IsRecordAtProxy(clusterConfig.GetSessionRecording())
 	isTeleportNode := s.Component() == teleport.ComponentNode
 
 	if isRecordAtProxy && isTeleportNode {
@@ -847,7 +847,7 @@ func (s *Server) HandleNewConn(ctx context.Context, ccx *sshutils.ConnectionCont
 		return ctx, trace.Wrap(err)
 	}
 
-	lock, err := services.AcquireSemaphoreLock(ctx, services.SemaphoreLockConfig{
+	lock, err := auth.AcquireSemaphoreLock(ctx, auth.SemaphoreLockConfig{
 		Service: s.authService,
 		Expiry:  cfg.GetSessionControlTimeout(),
 		Params: services.AcquireSemaphoreRequest{
@@ -1338,7 +1338,7 @@ func (s *Server) handleAgentForwardNode(req *ssh.Request, ctx *srv.ServerContext
 func (s *Server) handleAgentForwardProxy(req *ssh.Request, ctx *srv.ServerContext) error {
 	// Forwarding an agent to the proxy is only supported when the proxy is in
 	// recording mode.
-	if services.IsRecordAtProxy(ctx.ClusterConfig.GetSessionRecording()) == false {
+	if auth.IsRecordAtProxy(ctx.ClusterConfig.GetSessionRecording()) == false {
 		return trace.BadParameter("agent forwarding to proxy only supported in recording mode")
 	}
 
@@ -1425,7 +1425,7 @@ func (s *Server) handleRecordingProxy(req *ssh.Request) {
 
 		// reply true that we were able to process the message and reply with a
 		// bool if we are in recording mode or not
-		recordingProxy = services.IsRecordAtProxy(clusterConfig.GetSessionRecording())
+		recordingProxy = auth.IsRecordAtProxy(clusterConfig.GetSessionRecording())
 		err = req.Reply(true, []byte(strconv.FormatBool(recordingProxy)))
 		if err != nil {
 			log.Warnf("Unable to respond to global request (%v, %v): %v: %v", req.Type, req.WantReply, recordingProxy, err)
@@ -1492,7 +1492,7 @@ func (s *Server) handleProxyJump(ctx context.Context, ccx *sshutils.ConnectionCo
 	// "out of band", before SSH client actually asks for it
 	// which is a hack, but the only way we can think of making it work,
 	// ideas are appreciated.
-	if services.IsRecordAtProxy(clusterConfig.GetSessionRecording()) {
+	if auth.IsRecordAtProxy(clusterConfig.GetSessionRecording()) {
 		err = s.handleAgentForwardProxy(&ssh.Request{}, scx)
 		if err != nil {
 			log.Warningf("Failed to request agent in recording mode: %v", err)

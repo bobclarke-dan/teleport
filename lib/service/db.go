@@ -19,7 +19,7 @@ package service
 import (
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/api/types"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/cache"
 	"github.com/gravitational/teleport/lib/events"
 	"github.com/gravitational/teleport/lib/reversetunnel"
@@ -100,7 +100,7 @@ func (process *TeleportProcess) initDatabaseService() (retErr error) {
 			}))
 	}
 
-	authorizer, err := auth.NewAuthorizer(conn.Client, conn.Client, conn.Client)
+	authorizer, err := server.NewAuthorizer(conn.Client, conn.Client, conn.Client)
 	if err != nil {
 		return trace.Wrap(err)
 	}

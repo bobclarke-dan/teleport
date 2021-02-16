@@ -16,31 +16,33 @@ limitations under the License.
 
 package auth
 
+import "github.com/gravitational/teleport/api/types"
+
 // ClusterConfiguration stores the cluster configuration in the backend. All
 // the resources modified by this interface can only have a single instance
 // in the backend.
 type ClusterConfiguration interface {
 	// SetClusterName gets services.ClusterName from the backend.
-	GetClusterName(opts ...MarshalOption) (ClusterName, error)
+	GetClusterName(opts ...MarshalOption) (types.ClusterName, error)
 	// SetClusterName sets services.ClusterName on the backend.
-	SetClusterName(ClusterName) error
+	SetClusterName(types.ClusterName) error
 
 	// GetStaticTokens gets services.StaticTokens from the backend.
-	GetStaticTokens() (StaticTokens, error)
+	GetStaticTokens() (types.StaticTokens, error)
 	// SetStaticTokens sets services.StaticTokens on the backend.
-	SetStaticTokens(StaticTokens) error
+	SetStaticTokens(types.StaticTokens) error
 	// DeleteStaticTokens deletes static tokens resource
 	DeleteStaticTokens() error
 
 	// GetAuthPreference gets services.AuthPreference from the backend.
-	GetAuthPreference() (AuthPreference, error)
+	GetAuthPreference() (types.AuthPreference, error)
 	// SetAuthPreference sets services.AuthPreference from the backend.
-	SetAuthPreference(AuthPreference) error
+	SetAuthPreference(types.AuthPreference) error
 
 	// GetClusterConfig gets services.ClusterConfig from the backend.
-	GetClusterConfig(opts ...MarshalOption) (ClusterConfig, error)
+	GetClusterConfig(opts ...MarshalOption) (types.ClusterConfig, error)
 	// SetClusterConfig sets services.ClusterConfig on the backend.
-	SetClusterConfig(ClusterConfig) error
+	SetClusterConfig(types.ClusterConfig) error
 }
 
 // ServerClusterConfiguration manages cluster configuration on auth server
@@ -48,7 +50,7 @@ type ServerClusterConfiguration interface {
 	ClusterConfiguration
 
 	// UpsertClusterName upserts cluster name
-	UpsertClusterName(ClusterName) error
+	UpsertClusterName(types.ClusterName) error
 
 	// DeleteClusterConfig deletes cluster config resource
 	DeleteClusterConfig() error

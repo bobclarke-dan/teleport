@@ -20,10 +20,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/httplib"
 	"github.com/gravitational/teleport/lib/httplib/csrf"
-	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
 
 	"github.com/gravitational/form"
@@ -52,7 +52,7 @@ func (h *Handler) samlSSO(w http.ResponseWriter, r *http.Request, p httprouter.P
 	}
 
 	response, err := h.cfg.ProxyClient.CreateSAMLAuthRequest(
-		services.SAMLAuthRequest{
+		auth.SAMLAuthRequest{
 			ConnectorID:       connectorID,
 			CSRFToken:         csrfToken,
 			CreateWebSession:  true,
@@ -76,7 +76,7 @@ func (h *Handler) samlSSOConsole(w http.ResponseWriter, r *http.Request, p httpr
 		return nil, trace.Wrap(err)
 	}
 	response, err := h.cfg.ProxyClient.CreateSAMLAuthRequest(
-		services.SAMLAuthRequest{
+		auth.SAMLAuthRequest{
 			ConnectorID:       req.ConnectorID,
 			ClientRedirectURL: req.RedirectURL,
 			PublicKey:         req.PublicKey,

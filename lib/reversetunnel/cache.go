@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/sshca"
 
@@ -36,13 +36,13 @@ type certificateCache struct {
 	mu sync.Mutex
 
 	cache      *ttlmap.TTLMap
-	authClient auth.ClientI
+	authClient client.ClientI
 	keygen     sshca.Authority
 }
 
 // newHostCertificateCache creates a shared host certificate cache that is
 // used by the forwarding server.
-func newHostCertificateCache(keygen sshca.Authority, authClient auth.ClientI) (*certificateCache, error) {
+func newHostCertificateCache(keygen sshca.Authority, authClient client.ClientI) (*certificateCache, error) {
 	cache, err := ttlmap.New(defaults.HostCertCacheSize)
 	if err != nil {
 		return nil, trace.Wrap(err)

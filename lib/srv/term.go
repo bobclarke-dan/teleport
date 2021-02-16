@@ -28,7 +28,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/services"
+	"github.com/gravitational/teleport/lib/auth"
 	rsession "github.com/gravitational/teleport/lib/session"
 	"github.com/gravitational/teleport/lib/sshutils"
 
@@ -108,7 +108,7 @@ func NewTerminal(ctx *ServerContext) (Terminal, error) {
 
 	// If this is not a Teleport node, find out what mode the cluster is in and
 	// return the correct terminal.
-	if services.IsRecordAtProxy(ctx.ClusterConfig.GetSessionRecording()) {
+	if auth.IsRecordAtProxy(ctx.ClusterConfig.GetSessionRecording()) {
 		return newRemoteTerminal(ctx)
 	}
 	return newLocalTerminal(ctx)

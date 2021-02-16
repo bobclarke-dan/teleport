@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/services"
+	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/srv/db/common"
 	"github.com/gravitational/teleport/lib/srv/db/mysql/protocol"
 
@@ -130,8 +130,8 @@ func (e *Engine) checkAccess(sessionCtx *common.Session) error {
 	// detecting full-qualified table names like db.table, until then the
 	// proper way is to use MySQL grants system.
 	err := sessionCtx.Checker.CheckAccessToDatabase(sessionCtx.Server,
-		&services.DatabaseLabelsMatcher{Labels: sessionCtx.Server.GetAllLabels()},
-		&services.DatabaseUserMatcher{User: sessionCtx.DatabaseUser})
+		&auth.DatabaseLabelsMatcher{Labels: sessionCtx.Server.GetAllLabels()},
+		&auth.DatabaseUserMatcher{User: sessionCtx.DatabaseUser})
 	if err != nil {
 		if err := e.Audit.OnSessionStart(e.Context, *sessionCtx, err); err != nil {
 			e.Log.WithError(err).Error("Failed to emit audit event.")

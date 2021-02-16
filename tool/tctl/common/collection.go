@@ -58,9 +58,9 @@ func (r *roleCollection) writeText(w io.Writer) error {
 		}
 		t.AddRow([]string{
 			r.GetMetadata().Name,
-			strings.Join(r.GetLogins(services.Allow), ","),
-			printNodeLabels(r.GetNodeLabels(services.Allow)),
-			printActions(r.GetRules(services.Allow))})
+			strings.Join(r.GetLogins(types.Allow), ","),
+			printNodeLabels(r.GetNodeLabels(types.Allow)),
+			printActions(r.GetRules(types.Allow))})
 	}
 	_, err := t.AsBuffer().WriteTo(w)
 	return trace.Wrap(err)

@@ -30,6 +30,8 @@ import (
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/labels"
 	"github.com/gravitational/teleport/lib/services"
@@ -54,7 +56,7 @@ type Config struct {
 	DataDir string
 
 	// AuthClient is a client directly connected to the Auth server.
-	AuthClient *auth.Client
+	AuthClient *client.Client
 
 	// AccessPoint is a caching client connected to the Auth Server.
 	AccessPoint auth.ClientAccessPoint
@@ -67,7 +69,7 @@ type Config struct {
 	CipherSuites []uint16
 
 	// Authorizer is used to authorize requests.
-	Authorizer auth.Authorizer
+	Authorizer server.Authorizer
 
 	// GetRotation returns the certificate rotation state.
 	GetRotation RotationGetter
@@ -355,9 +357,9 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) error {
 // session in the backend.
 func (s *Server) authorize(ctx context.Context, r *http.Request) (*tlsca.Identity, *services.App, error) {
 	// Only allow local and remote identities to proxy to an application.
-	userType := r.Context().Value(auth.ContextUser)
+	userType := r.Context().Value(server.ContextUser)
 	switch userType.(type) {
-	case auth.LocalUser, auth.RemoteUser:
+	case server.LocalUser, server.RemoteUser:
 	default:
 		return nil, nil, trace.BadParameter("invalid identity: %T", userType)
 	}
@@ -431,7 +433,7 @@ func (s *Server) getApp(ctx context.Context, publicAddr string) (*services.App, 
 func (s *Server) newHTTPServer() *http.Server {
 	// Reuse the auth.Middleware to authorize requests but only accept
 	// certificates that were specifically generated for applications.
-	authMiddleware := &auth.Middleware{
+	authMiddleware := &server.Middleware{
 		AccessPoint:   s.c.AccessPoint,
 		AcceptedUsage: []string{teleport.UsageAppsOnly},
 	}
@@ -478,7 +480,7 @@ func (s *Server) getConfigForClient(info *tls.ClientHelloInfo) (*tls.Config, err
 
 	// Fetch list of CAs that could have signed this certificate. If clusterName
 	// is empty, all CAs that this cluster knows about are returned.
-	pool, err := auth.ClientCertPool(s.c.AccessPoint, clusterName)
+	pool, err := server.ClientCertPool(s.c.AccessPoint, clusterName)
 	if err != nil {
 		// If this request fails, return nil and fallback to the default ClientCAs.
 		s.log.Debugf("Failed to retrieve client pool: %v.", trace.DebugReport(err))

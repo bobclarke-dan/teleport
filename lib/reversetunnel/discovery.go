@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gravitational/teleport/api/types"
+	"github.com/gravitational/teleport/lib/auth/resource"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/utils"
 
@@ -65,7 +67,7 @@ func marshalDiscoveryRequest(req discoveryRequest) ([]byte, error) {
 		// Marshaling attempts to enforce defaults which modifies
 		// the original value.
 		p = p.DeepCopy()
-		data, err := services.MarshalServer(p)
+		data, err := resource.MarshalServer(p)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -87,7 +89,7 @@ func unmarshalDiscoveryRequest(data []byte) (*discoveryRequest, error) {
 	}
 	var out discoveryRequest
 	for _, bytes := range raw.Proxies {
-		proxy, err := services.UnmarshalServer([]byte(bytes), services.KindProxy, services.SkipValidation())
+		proxy, err := resource.UnmarshalServer([]byte(bytes), types.KindProxy, resource.SkipValidation())
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}

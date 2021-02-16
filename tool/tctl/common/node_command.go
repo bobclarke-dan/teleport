@@ -26,10 +26,11 @@ import (
 
 	"github.com/gravitational/kingpin"
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/resource"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/service"
-	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/trace"
 )
 
@@ -73,7 +74,7 @@ func (c *NodeCommand) Initialize(app *kingpin.Application, config *service.Confi
 }
 
 // TryRun takes the CLI command as an argument (like "nodes ls") and executes it.
-func (c *NodeCommand) TryRun(cmd string, client auth.ClientI) (match bool, err error) {
+func (c *NodeCommand) TryRun(cmd string, client client.ClientI) (match bool, err error) {
 	switch cmd {
 	case c.nodeAdd.FullCommand():
 		err = c.Invite(client)
@@ -111,13 +112,13 @@ Please note:
 
 // Invite generates a token which can be used to add another SSH node
 // to a cluster
-func (c *NodeCommand) Invite(client auth.ClientI) error {
+func (c *NodeCommand) Invite(client client.ClientI) error {
 	// parse --roles flag
 	roles, err := teleport.ParseRoles(c.roles)
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	token, err := client.GenerateToken(context.TODO(), auth.GenerateTokenRequest{Roles: roles, TTL: c.ttl, Token: c.token})
+	token, err := client.GenerateToken(context.TODO(), server.GenerateTokenRequest{Roles: roles, TTL: c.ttl, Token: c.token})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -168,8 +169,8 @@ func (c *NodeCommand) Invite(client auth.ClientI) error {
 
 // ListActive retreives the list of nodes who recently sent heartbeats to
 // to a cluster and prints it to stdout
-func (c *NodeCommand) ListActive(client auth.ClientI) error {
-	nodes, err := client.GetNodes(c.namespace, services.SkipValidation())
+func (c *NodeCommand) ListActive(client client.ClientI) error {
+	nodes, err := client.GetNodes(c.namespace, resource.SkipValidation())
 	if err != nil {
 		return trace.Wrap(err)
 	}

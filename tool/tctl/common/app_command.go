@@ -22,10 +22,10 @@ import (
 
 	"github.com/gravitational/kingpin"
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/resource"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/service"
-	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/trace"
 )
 
@@ -50,7 +50,7 @@ func (c *AppsCommand) Initialize(app *kingpin.Application, config *service.Confi
 }
 
 // TryRun attempts to run subcommands like "apps ls".
-func (c *AppsCommand) TryRun(cmd string, client auth.ClientI) (match bool, err error) {
+func (c *AppsCommand) TryRun(cmd string, client client.ClientI) (match bool, err error) {
 	switch cmd {
 	case c.appsList.FullCommand():
 		err = c.ListApps(client)
@@ -62,8 +62,8 @@ func (c *AppsCommand) TryRun(cmd string, client auth.ClientI) (match bool, err e
 
 // ListApps prints the list of applications that have recently sent heartbeats
 // to the cluster.
-func (c *AppsCommand) ListApps(client auth.ClientI) error {
-	servers, err := client.GetAppServers(context.TODO(), defaults.Namespace, services.SkipValidation())
+func (c *AppsCommand) ListApps(client client.ClientI) error {
+	servers, err := client.GetAppServers(context.TODO(), defaults.Namespace, resource.SkipValidation())
 	if err != nil {
 		return trace.Wrap(err)
 	}

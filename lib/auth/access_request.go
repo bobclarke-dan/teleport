@@ -18,16 +18,26 @@ package auth
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/teleport/lib/utils/parse"
 
 	"github.com/gravitational/trace"
-
 	"github.com/pborman/uuid"
 )
+
+// NewAccessRequest assembles an AccessRequest resource.
+func NewAccessRequest(user, role string, additionalRoles ...string) (types.AccessRequest, error) {
+	req, err := types.NewAccessRequest(uuid.New(), user, role, additionalRoles...)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if err := ValidateAccessRequest(req); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return req, nil
+}
 
 // ValidateAccessRequest validates the AccessRequest and sets default values
 func ValidateAccessRequest(ar types.AccessRequest) error {
@@ -40,16 +50,16 @@ func ValidateAccessRequest(ar types.AccessRequest) error {
 	return nil
 }
 
-// NewAccessRequest assembles an AccessRequest resource.
-func NewAccessRequest(user, role string, additionalRoles ...string) (types.AccessRequest, error) {
-	req, err := types.NewAccessRequest(uuid.New(), user, role, additionalRoles...)
+// ValidateAccessRequestForUser validates an access request against the associated users's
+// *statically assigned* roles. If expandRoles is true, it will also expand wildcard
+// requests, setting their role list to include all roles the user is allowed to request.
+// Expansion should be performed before an access request is initially placed in the backend.
+func ValidateAccessRequestForUser(getter UserAndRoleGetter, req types.AccessRequest, opts ...ValidateRequestOption) error {
+	v, err := NewRequestValidator(getter, req.GetUser(), opts...)
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
-	if err := ValidateAccessRequest(req); err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return req, nil
+	return trace.Wrap(v.Validate(req))
 }
 
 // RequestIDs is a collection of IDs for privilege escalation requests.
@@ -88,17 +98,17 @@ func (r *RequestIDs) IsEmpty() bool {
 // DynamicAccess is a service which manages dynamic RBAC.
 type DynamicAccess interface {
 	// CreateAccessRequest stores a new access request.
-	CreateAccessRequest(ctx context.Context, req AccessRequest) error
+	CreateAccessRequest(ctx context.Context, req types.AccessRequest) error
 	// SetAccessRequestState updates the state of an existing access request.
-	SetAccessRequestState(ctx context.Context, params AccessRequestUpdate) error
+	SetAccessRequestState(ctx context.Context, params types.AccessRequestUpdate) error
 	// GetAccessRequests gets all currently active access requests.
-	GetAccessRequests(ctx context.Context, filter AccessRequestFilter) ([]AccessRequest, error)
+	GetAccessRequests(ctx context.Context, filter types.AccessRequestFilter) ([]types.AccessRequest, error)
 	// DeleteAccessRequest deletes an access request.
 	DeleteAccessRequest(ctx context.Context, reqID string) error
 	// GetPluginData loads all plugin data matching the supplied filter.
-	GetPluginData(ctx context.Context, filter PluginDataFilter) ([]PluginData, error)
+	GetPluginData(ctx context.Context, filter types.PluginDataFilter) ([]types.PluginData, error)
 	// UpdatePluginData updates a per-resource PluginData entry.
-	UpdatePluginData(ctx context.Context, params PluginDataUpdateParams) error
+	UpdatePluginData(ctx context.Context, params types.PluginDataUpdateParams) error
 }
 
 // DynamicAccessOracle is a service capable of answering questions related
@@ -106,13 +116,13 @@ type DynamicAccess interface {
 // list of roles a user is allowed to request) can not be calculated by
 // actors with limited privileges.
 type DynamicAccessOracle interface {
-	GetAccessCapabilities(ctx context.Context, req AccessCapabilitiesRequest) (*AccessCapabilities, error)
+	GetAccessCapabilities(ctx context.Context, req types.AccessCapabilitiesRequest) (*types.AccessCapabilities, error)
 }
 
 // CalculateAccessCapabilities aggregates the requested capabilities using the supplied getter
 // to load relevant resources.
-func CalculateAccessCapabilities(ctx context.Context, clt UserAndRoleGetter, req AccessCapabilitiesRequest) (*AccessCapabilities, error) {
-	var caps AccessCapabilities
+func CalculateAccessCapabilities(ctx context.Context, clt UserAndRoleGetter, req types.AccessCapabilitiesRequest) (*types.AccessCapabilities, error) {
+	var caps types.AccessCapabilities
 	if req.RequestableRoles {
 		v, err := NewRequestValidator(clt, req.User)
 		if err != nil {
@@ -130,15 +140,16 @@ func CalculateAccessCapabilities(ctx context.Context, clt UserAndRoleGetter, req
 // used to implement some auth server internals.
 type DynamicAccessExt interface {
 	DynamicAccess
+
 	// UpsertAccessRequest creates or updates an access request.
-	UpsertAccessRequest(ctx context.Context, req AccessRequest) error
+	UpsertAccessRequest(ctx context.Context, req types.AccessRequest) error
 	// DeleteAllAccessRequests deletes all existent access requests.
 	DeleteAllAccessRequests(ctx context.Context) error
 }
 
 // GetAccessRequest is a helper function assists with loading a specific request by ID.
-func GetAccessRequest(ctx context.Context, acc DynamicAccess, reqID string) (AccessRequest, error) {
-	reqs, err := acc.GetAccessRequests(ctx, AccessRequestFilter{
+func GetAccessRequest(ctx context.Context, acc DynamicAccess, reqID string) (types.AccessRequest, error) {
+	reqs, err := acc.GetAccessRequests(ctx, types.AccessRequestFilter{
 		ID: reqID,
 	})
 	if err != nil {
@@ -151,28 +162,28 @@ func GetAccessRequest(ctx context.Context, acc DynamicAccess, reqID string) (Acc
 }
 
 // GetTraitMappings gets the AccessRequestConditions' claims as a TraitMappingsSet
-func GetTraitMappings(c AccessRequestConditions) TraitMappingSet {
-	tm := make([]TraitMapping, 0, len(c.ClaimsToRoles))
+func GetTraitMappings(c types.AccessRequestConditions) types.TraitMappingSet {
+	tm := make([]types.TraitMapping, 0, len(c.ClaimsToRoles))
 	for _, mapping := range c.ClaimsToRoles {
-		tm = append(tm, TraitMapping{
+		tm = append(tm, types.TraitMapping{
 			Trait: mapping.Claim,
 			Value: mapping.Value,
 			Roles: mapping.Roles,
 		})
 	}
-	return TraitMappingSet(tm)
+	return types.TraitMappingSet(tm)
 }
 
 type UserAndRoleGetter interface {
 	UserGetter
 	RoleGetter
-	GetRoles() ([]Role, error)
+	GetRoles() ([]types.Role, error)
 }
 
 // appendRoleMatchers constructs all role matchers for a given
 // AccessRequestConditions instance and appends them to the
 // supplied matcher slice.
-func appendRoleMatchers(matchers []parse.Matcher, conditions AccessRequestConditions, traits map[string][]string) ([]parse.Matcher, error) {
+func appendRoleMatchers(matchers []parse.Matcher, conditions types.AccessRequestConditions, traits map[string][]string) ([]parse.Matcher, error) {
 	// build matchers for the role list
 	for _, r := range conditions.Roles {
 		m, err := parse.NewMatcher(r)
@@ -194,7 +205,7 @@ func appendRoleMatchers(matchers []parse.Matcher, conditions AccessRequestCondit
 // insertAnnotations constructs all annotations for a given
 // AccessRequestConditions instance and adds them to the
 // supplied annotations mapping.
-func insertAnnotations(annotations map[string][]string, conditions AccessRequestConditions, traits map[string][]string) {
+func insertAnnotations(annotations map[string][]string, conditions types.AccessRequestConditions, traits map[string][]string) {
 	for key, vals := range conditions.Annotations {
 		// get any previous values at key
 		allVals := annotations[key]
@@ -223,7 +234,7 @@ func insertAnnotations(annotations map[string][]string, conditions AccessRequest
 // are used to validate and expand the access request.
 type RequestValidator struct {
 	getter        UserAndRoleGetter
-	user          User
+	user          types.User
 	requireReason bool
 	opts          struct {
 		expandRoles, annotate bool
@@ -274,7 +285,7 @@ func NewRequestValidator(getter UserAndRoleGetter, username string, opts ...Vali
 
 // Validate validates an access request and potentially modifies it depending on how
 // the validator was configured.
-func (m *RequestValidator) Validate(req AccessRequest) error {
+func (m *RequestValidator) Validate(req types.AccessRequest) error {
 	if m.user.GetName() != req.GetUser() {
 		return trace.BadParameter("request validator configured for different user (this is a bug)")
 	}
@@ -286,7 +297,7 @@ func (m *RequestValidator) Validate(req AccessRequest) error {
 	// check for "wildcard request" (`roles=*`).  wildcard requests
 	// need to be expanded into a list consisting of all existing roles
 	// that the user does not hold and is allowed to request.
-	if r := req.GetRoles(); len(r) == 1 && r[0] == Wildcard {
+	if r := req.GetRoles(); len(r) == 1 && r[0] == types.Wildcard {
 
 		if !req.GetState().IsPending() {
 			// expansion is only permitted in pending requests.  once resolved,
@@ -351,12 +362,12 @@ func (m *RequestValidator) GetRequestableRoles() ([]string, error) {
 // push compiles a role's configuration into the request validator.
 // All of the requesint user's statically assigned roles must be pushed
 // before validation begins.
-func (m *RequestValidator) push(role Role) error {
+func (m *RequestValidator) push(role types.Role) error {
 	var err error
 
 	m.requireReason = m.requireReason || role.GetOptions().RequestAccess.RequireReason()
 
-	allow, deny := role.GetAccessRequestConditions(Allow), role.GetAccessRequestConditions(Deny)
+	allow, deny := role.GetAccessRequestConditions(types.Allow), role.GetAccessRequestConditions(types.Deny)
 
 	m.Roles.Deny, err = appendRoleMatchers(m.Roles.Deny, deny, m.user.GetTraits())
 	if err != nil {
@@ -427,91 +438,5 @@ func ExpandRoles(expand bool) ValidateRequestOption {
 func ApplySystemAnnotations(annotate bool) ValidateRequestOption {
 	return func(v *RequestValidator) {
 		v.opts.annotate = annotate
-	}
-}
-
-// ValidateAccessRequestForUser validates an access request against the associated users's
-// *statically assigned* roles. If expandRoles is true, it will also expand wildcard
-// requests, setting their role list to include all roles the user is allowed to request.
-// Expansion should be performed before an access request is initially placed in the backend.
-func ValidateAccessRequestForUser(getter UserAndRoleGetter, req AccessRequest, opts ...ValidateRequestOption) error {
-	v, err := NewRequestValidator(getter, req.GetUser(), opts...)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	return trace.Wrap(v.Validate(req))
-}
-
-// AccessRequestSpecSchema is JSON schema for AccessRequestSpec
-const AccessRequestSpecSchema = `{
-	"type": "object",
-	"additionalProperties": false,
-	"properties": {
-		"user": { "type": "string" },
-		"roles": {
-			"type": "array",
-			"items": { "type": "string" }
-		},
-		"state": { "type": "integer" },
-		"created": { "type": "string" },
-		"expires": { "type": "string" },
-		"request_reason": { "type": "string" },
-		"resolve_reason": { "type": "string" },
-		"resolve_annotations": { "type": "object" },
-		"system_annotations": { "type": "object" }
-	}
-}`
-
-// GetAccessRequestSchema gets the full AccessRequest JSON schema
-func GetAccessRequestSchema() string {
-	return fmt.Sprintf(V2SchemaTemplate, MetadataSchema, AccessRequestSpecSchema, DefaultDefinitions)
-}
-
-// UnmarshalAccessRequest unmarshals the AccessRequest resource from JSON.
-func UnmarshalAccessRequest(data []byte, opts ...MarshalOption) (AccessRequest, error) {
-	cfg, err := CollectOptions(opts)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	var req AccessRequestV3
-	if cfg.SkipValidation {
-		if err := utils.FastUnmarshal(data, &req); err != nil {
-			return nil, trace.Wrap(err)
-		}
-	} else {
-		if err := utils.UnmarshalWithSchema(GetAccessRequestSchema(), &req, data); err != nil {
-			return nil, trace.Wrap(err)
-		}
-	}
-	if err := ValidateAccessRequest(&req); err != nil {
-		return nil, trace.Wrap(err)
-	}
-	if cfg.ID != 0 {
-		req.SetResourceID(cfg.ID)
-	}
-	if !cfg.Expires.IsZero() {
-		req.SetExpiry(cfg.Expires)
-	}
-	return &req, nil
-}
-
-// MarshalAccessRequest marshals the AccessRequest resource to JSON.
-func MarshalAccessRequest(req AccessRequest, opts ...MarshalOption) ([]byte, error) {
-	cfg, err := CollectOptions(opts)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	switch r := req.(type) {
-	case *AccessRequestV3:
-		if !cfg.PreserveResourceID {
-			// avoid modifying the original object
-			// to prevent unexpected data races
-			cp := *r
-			cp.SetResourceID(0)
-			r = &cp
-		}
-		return utils.FastMarshal(r)
-	default:
-		return nil, trace.BadParameter("unrecognized access request type: %T", req)
 	}
 }

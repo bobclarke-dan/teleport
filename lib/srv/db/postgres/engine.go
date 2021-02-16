@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/gravitational/teleport/lib/services"
+	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/srv/db/common"
 
 	"github.com/jackc/pgconn"
@@ -179,9 +179,9 @@ func (e *Engine) handleStartup(client *pgproto3.Backend, sessionCtx *common.Sess
 
 func (e *Engine) checkAccess(sessionCtx *common.Session) error {
 	err := sessionCtx.Checker.CheckAccessToDatabase(sessionCtx.Server,
-		&services.DatabaseLabelsMatcher{Labels: sessionCtx.Server.GetAllLabels()},
-		&services.DatabaseUserMatcher{User: sessionCtx.DatabaseUser},
-		&services.DatabaseNameMatcher{Name: sessionCtx.DatabaseName})
+		&auth.DatabaseLabelsMatcher{Labels: sessionCtx.Server.GetAllLabels()},
+		&auth.DatabaseUserMatcher{User: sessionCtx.DatabaseUser},
+		&auth.DatabaseNameMatcher{Name: sessionCtx.DatabaseName})
 	if err != nil {
 		if err := e.Audit.OnSessionStart(e.Context, *sessionCtx, err); err != nil {
 			e.Log.WithError(err).Error("Failed to emit audit event.")

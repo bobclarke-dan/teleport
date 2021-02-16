@@ -25,8 +25,6 @@ import (
 	"github.com/gravitational/teleport/lib/fixtures"
 	"github.com/gravitational/teleport/lib/utils"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/check.v1"
 )
 
@@ -57,22 +55,22 @@ func (s *ServerSuite) TestServersCompare(c *check.C) {
 	}
 	node.SetExpiry(time.Date(2018, 1, 2, 3, 4, 5, 6, time.UTC))
 	// Server is equal to itself
-	c.Assert(CompareServers(node, node), check.Equals, Equal)
+	c.Assert(compareServers(node, node), check.Equals, Equal)
 
 	// Only timestamps are different
 	node2 := *node
 	node2.SetExpiry(time.Date(2018, 1, 2, 3, 4, 5, 8, time.UTC))
-	c.Assert(CompareServers(node, &node2), check.Equals, OnlyTimestampsDifferent)
+	c.Assert(compareServers(node, &node2), check.Equals, OnlyTimestampsDifferent)
 
 	// Labels are different
 	node2 = *node
 	node2.Metadata.Labels = map[string]string{"a": "d"}
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 
 	// Command labels are different
 	node2 = *node
 	node2.Spec.CmdLabels = map[string]CommandLabelV2{"a": {Period: Duration(time.Minute), Command: []string{"ls", "-lR"}}}
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 
 	// Address has changed
 	node2 = *node
@@ -82,17 +80,17 @@ func (s *ServerSuite) TestServersCompare(c *check.C) {
 	// Public addr has changed
 	node2 = *node
 	node2.Spec.PublicAddr = "localhost:3033"
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 
 	// Hostname has changed
 	node2 = *node
 	node2.Spec.Hostname = "luna2"
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 
 	// TeleportVersion has changed
 	node2 = *node
 	node2.Spec.Version = "5.0.0"
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 
 	// Rotation has changed
 	node2 = *node
@@ -109,7 +107,7 @@ func (s *ServerSuite) TestServersCompare(c *check.C) {
 			Standby:       time.Date(2018, 3, 4, 5, 6, 13, 8, time.UTC),
 		},
 	}
-	c.Assert(CompareServers(node, &node2), check.Equals, Different)
+	c.Assert(compareServers(node, &node2), check.Equals, Different)
 }
 
 // TestGuessProxyHostAndVersion checks that the GuessProxyHostAndVersion
@@ -140,74 +138,4 @@ func (s *ServerSuite) TestGuessProxyHostAndVersion(c *check.C) {
 	c.Assert(host, check.Equals, proxyB.Spec.PublicAddr)
 	c.Assert(version, check.Equals, proxyB.Spec.Version)
 	c.Assert(err, check.IsNil)
-}
-
-func TestUnmarshalServerResourceKubernetes(t *testing.T) {
-	// Regression test for
-	// https://github.com/gravitational/teleport/issues/4862
-	//
-	// Verifies unmarshaling succeeds, when provided a 4.4 server JSON
-	// definition.
-	tests := []struct {
-		desc string
-		in   string
-		want *ServerV2
-	}{
-		{
-			desc: "4.4 kubernetes_clusters field",
-			in: `{
-	"version": "v2",
-	"kind": "kube_service",
-	"metadata": {
-		"name": "foo"
-	},
-	"spec": {
-		"kubernetes_clusters": ["a", "b", "c"]
-	}
-}`,
-			want: &ServerV2{
-				Version: V2,
-				Kind:    KindKubeService,
-				Metadata: Metadata{
-					Name:      "foo",
-					Namespace: defaults.Namespace,
-				},
-			},
-		},
-		{
-			desc: "5.0 kubernetes_clusters field",
-			in: `{
-	"version": "v2",
-	"kind": "kube_service",
-	"metadata": {
-		"name": "foo"
-	},
-	"spec": {
-		"kube_clusters": [{"name": "a"}, {"name": "b"}, {"name": "c"}]
-	}
-}`,
-			want: &ServerV2{
-				Version: V2,
-				Kind:    KindKubeService,
-				Metadata: Metadata{
-					Name:      "foo",
-					Namespace: defaults.Namespace,
-				},
-				Spec: ServerSpecV2{
-					KubernetesClusters: []*KubernetesCluster{
-						{Name: "a"},
-						{Name: "b"},
-						{Name: "c"},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			got, err := UnmarshalServerResource([]byte(tt.in), KindKubeService, &MarshalConfig{})
-			require.NoError(t, err)
-			require.Empty(t, cmp.Diff(got, tt.want))
-		})
-	}
 }

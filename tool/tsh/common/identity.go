@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/client/identityfile"
 
@@ -74,10 +74,10 @@ func LoadIdentity(idFn string) (*client.Key, error) {
 		}
 	}
 	// Validate TLS CA certs (if present).
-	var trustedCA []auth.TrustedCerts
+	var trustedCA []server.TrustedCerts
 	if len(ident.CACerts.TLS) > 0 {
 		if len(trustedCA) == 0 {
-			trustedCA = make([]auth.TrustedCerts, 1)
+			trustedCA = make([]server.TrustedCerts, 1)
 		}
 		trustedCA[0].TLSCertificates = ident.CACerts.TLS
 
@@ -91,7 +91,7 @@ func LoadIdentity(idFn string) (*client.Key, error) {
 	// validate CA (cluster) certs
 	if len(ident.CACerts.SSH) > 0 {
 		if len(trustedCA) == 0 {
-			trustedCA = make([]auth.TrustedCerts, 1)
+			trustedCA = make([]server.TrustedCerts, 1)
 		}
 		trustedCA[0].HostCertificates = ident.CACerts.SSH
 

@@ -21,20 +21,12 @@ import (
 	"time"
 
 	"github.com/gravitational/teleport/api/types"
-	"github.com/gravitational/teleport/lib/auth/u2f"
 	"github.com/gravitational/teleport/lib/defaults"
 
-	"github.com/gokyle/hotp"
 	"github.com/gravitational/trace"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/crypto/ssh"
 )
-
-// UserGetter is responsible for getting users
-type UserGetter interface {
-	// GetUser returns a user by name
-	GetUser(user string, withSecrets bool) (types.User, error)
-}
 
 // UsersService is responsible for basic user management
 type UsersService interface {
@@ -49,208 +41,6 @@ type UsersService interface {
 	GetUsers(withSecrets bool) ([]types.User, error)
 }
 
-// ServerUsers manages users on auth server
-type ServerUsers interface {
-	UsersService
-
-	// DeleteAllUsers deletes all users
-	DeleteAllUsers() error
-}
-
-// Identity is responsible for managing user entries and external identities
-type Identity interface {
-	// CreateUser creates user, only if the user entry does not exist
-	CreateUser(user types.User) error
-
-	// UsersService implements most methods
-	UsersService
-
-	// AddUserLoginAttempt logs user login attempt
-	AddUserLoginAttempt(user string, attempt LoginAttempt, ttl time.Duration) error
-
-	// GetUserLoginAttempts returns user login attempts
-	GetUserLoginAttempts(user string) ([]LoginAttempt, error)
-
-	// DeleteUserLoginAttempts removes all login attempts of a user. Should be
-	// called after successful login.
-	DeleteUserLoginAttempts(user string) error
-
-	// GetUserByOIDCIdentity returns a user by its specified OIDC Identity, returns first
-	// user specified with this identity
-	GetUserByOIDCIdentity(id types.ExternalIdentity) (types.User, error)
-
-	// GetUserBySAMLIdentity returns a user by its specified OIDC Identity, returns first
-	// user specified with this identity
-	GetUserBySAMLIdentity(id types.ExternalIdentity) (types.User, error)
-
-	// GetUserByGithubIdentity returns a user by its specified Github identity
-	GetUserByGithubIdentity(id types.ExternalIdentity) (types.User, error)
-
-	// UpsertPasswordHash upserts user password hash
-	UpsertPasswordHash(user string, hash []byte) error
-
-	// GetPasswordHash returns the password hash for a given user
-	GetPasswordHash(user string) ([]byte, error)
-
-	// UpsertHOTP upserts HOTP state for user
-	// Deprecated: HOTP use is deprecated, use UpsertTOTP instead.
-	UpsertHOTP(user string, otp *hotp.HOTP) error
-
-	// GetHOTP gets HOTP token state for a user
-	// Deprecated: HOTP use is deprecated, use GetTOTP instead.
-	GetHOTP(user string) (*hotp.HOTP, error)
-
-	// UpsertUsedTOTPToken upserts a TOTP token to the backend so it can't be used again
-	// during the 30 second window it's valid.
-	UpsertUsedTOTPToken(user string, otpToken string) error
-
-	// GetUsedTOTPToken returns the last successfully used TOTP token.
-	GetUsedTOTPToken(user string) (string, error)
-
-	// UpsertPassword upserts new password and OTP token
-	UpsertPassword(user string, password []byte) error
-
-	// UpsertU2FRegisterChallenge upserts a U2F challenge for a new user corresponding to the token
-	UpsertU2FRegisterChallenge(token string, u2fChallenge *u2f.Challenge) error
-
-	// GetU2FRegisterChallenge returns a U2F challenge for a new user corresponding to the token
-	GetU2FRegisterChallenge(token string) (*u2f.Challenge, error)
-
-	// UpsertU2FSignChallenge upserts a U2F sign (auth) challenge
-	UpsertU2FSignChallenge(user, deviceID string, u2fChallenge *u2f.Challenge) error
-
-	// GetU2FSignChallenge returns a U2F sign (auth) challenge
-	GetU2FSignChallenge(user, deviceID string) (*u2f.Challenge, error)
-
-	// UpsertMFADevice upserts an MFA device for the user.
-	UpsertMFADevice(ctx context.Context, user string, d *types.MFADevice) error
-
-	// GetMFADevices gets all MFA devices for the user.
-	GetMFADevices(ctx context.Context, user string) ([]*types.MFADevice, error)
-
-	// DeleteMFADevice deletes an MFA device for the user by ID.
-	DeleteMFADevice(ctx context.Context, user, id string) error
-
-	// UpsertOIDCConnector upserts OIDC Connector
-	UpsertOIDCConnector(connector types.OIDCConnector) error
-
-	// DeleteOIDCConnector deletes OIDC Connector
-	DeleteOIDCConnector(connectorID string) error
-
-	// GetOIDCConnector returns OIDC connector data, withSecrets adds or removes client secret from return results
-	GetOIDCConnector(id string, withSecrets bool) (types.OIDCConnector, error)
-
-	// GetOIDCConnectors returns registered connectors, withSecrets adds or removes client secret from return results
-	GetOIDCConnectors(withSecrets bool) ([]types.OIDCConnector, error)
-
-	// CreateOIDCAuthRequest creates new auth request
-	CreateOIDCAuthRequest(req OIDCAuthRequest, ttl time.Duration) error
-
-	// GetOIDCAuthRequest returns OIDC auth request if found
-	GetOIDCAuthRequest(stateToken string) (*OIDCAuthRequest, error)
-
-	// CreateSAMLConnector creates SAML Connector
-	CreateSAMLConnector(connector types.SAMLConnector) error
-
-	// UpsertSAMLConnector upserts SAML Connector
-	UpsertSAMLConnector(connector types.SAMLConnector) error
-
-	// DeleteSAMLConnector deletes OIDC Connector
-	DeleteSAMLConnector(connectorID string) error
-
-	// GetSAMLConnector returns OIDC connector data, withSecrets adds or removes secrets from return results
-	GetSAMLConnector(id string, withSecrets bool) (types.SAMLConnector, error)
-
-	// GetSAMLConnectors returns registered connectors, withSecrets adds or removes secret from return results
-	GetSAMLConnectors(withSecrets bool) ([]types.SAMLConnector, error)
-
-	// CreateSAMLAuthRequest creates new auth request
-	CreateSAMLAuthRequest(req SAMLAuthRequest, ttl time.Duration) error
-
-	// GetSAMLAuthRequest returns OSAML auth request if found
-	GetSAMLAuthRequest(id string) (*SAMLAuthRequest, error)
-
-	// CreateGithubConnector creates a new Github connector
-	CreateGithubConnector(connector types.GithubConnector) error
-
-	// UpsertGithubConnector creates or updates a new Github connector
-	UpsertGithubConnector(connector types.GithubConnector) error
-
-	// GetGithubConnectors returns all configured Github connectors
-	GetGithubConnectors(withSecrets bool) ([]types.GithubConnector, error)
-
-	// GetGithubConnector returns a Github connector by its name
-	GetGithubConnector(name string, withSecrets bool) (types.GithubConnector, error)
-
-	// DeleteGithubConnector deletes a Github connector by its name
-	DeleteGithubConnector(name string) error
-
-	// CreateGithubAuthRequest creates a new auth request for Github OAuth2 flow
-	CreateGithubAuthRequest(req GithubAuthRequest) error
-
-	// GetGithubAuthRequest retrieves Github auth request by the token
-	GetGithubAuthRequest(stateToken string) (*GithubAuthRequest, error)
-
-	// CreateResetPasswordToken creates a token
-	CreateResetPasswordToken(ctx context.Context, resetPasswordToken types.ResetPasswordToken) (types.ResetPasswordToken, error)
-
-	// DeleteResetPasswordToken deletes a token
-	DeleteResetPasswordToken(ctx context.Context, tokenID string) error
-
-	// GetResetPasswordTokens returns tokens
-	GetResetPasswordTokens(ctx context.Context) ([]types.ResetPasswordToken, error)
-
-	// GetResetPasswordToken returns a token
-	GetResetPasswordToken(ctx context.Context, tokenID string) (types.ResetPasswordToken, error)
-
-	// UpsertResetPasswordTokenSecrets upserts token secrets
-	UpsertResetPasswordTokenSecrets(ctx context.Context, secrets types.ResetPasswordTokenSecrets) error
-
-	// GetResetPasswordTokenSecrets returns token secrets
-	GetResetPasswordTokenSecrets(ctx context.Context, tokenID string) (types.ResetPasswordTokenSecrets, error)
-}
-
-// ServerIdentity represents the Identity on the auth server
-type ServerIdentity interface {
-	Identity
-
-	ServerAppSession
-	ServerWebSessionsGetter
-	ServerWebTokensGetter
-}
-
-// ServerWebSessionsGetter manages web sessions on auth server
-// FIXME(dmitri): move to lib/auth
-type ServerWebSessionsGetter interface {
-	// WebSessions returns the web session manager
-	WebSessions() ServerWebSessions
-}
-
-// ServerWebSessions manages web sessions on the auth server
-// FIXME(dmitri): move to lib/auth
-type ServerWebSessions interface {
-	types.WebSessionInterface
-
-	// Upsert updates existing or inserts a new web session.
-	Upsert(ctx context.Context, session types.WebSession) error
-}
-
-// ServerWebTokensGetter manages web tokens on auth server
-// FIXME(dmitri): move to lib/auth
-type ServerWebTokensGetter interface {
-	// WebTokens returns the web token manager
-	WebTokens() ServerWebTokens
-}
-
-// ServerWebTokens manages web session on the auth server
-// FIXME(dmitri): move to lib/auth
-type ServerWebTokens interface {
-	types.WebTokenInterface
-
-	// Upsert updates existing or inserts a new web token.
-	Upsert(ctx context.Context, token types.WebToken) error
-}
-
 // AppSession defines application session features.
 type AppSession interface {
 	// GetAppSession gets an application web session.
@@ -261,14 +51,6 @@ type AppSession interface {
 	DeleteAppSession(context.Context, types.DeleteAppSessionRequest) error
 	// DeleteAllAppSessions removes all application web sessions.
 	DeleteAllAppSessions(context.Context) error
-}
-
-// ServerAppSession manages application sessions on auth server
-type ServerAppSession interface {
-	AppSession
-
-	// UpsertAppSession upserts and application web session.
-	UpsertAppSession(context.Context, types.WebSession) error
 }
 
 // VerifyPassword makes sure password satisfies our requirements (relaxed),

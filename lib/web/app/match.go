@@ -21,6 +21,8 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/gravitational/teleport/api/types"
+	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/reversetunnel"
 	"github.com/gravitational/teleport/lib/services"
@@ -84,7 +86,7 @@ func MatchName(name string) Matcher {
 // Getter returns a list of registered apps
 type Getter interface {
 	// GetAppServers returns a list of app servers
-	GetAppServers(context.Context, string, ...services.MarshalOption) ([]services.Server, error)
+	GetAppServers(context.Context, string, ...auth.MarshalOption) ([]types.Server, error)
 }
 
 // ResolveFQDN makes a best effort attempt to resolve FQDN to an application
@@ -95,7 +97,7 @@ type Getter interface {
 // cluster, this method will always return "acme" running within the root
 // cluster. Always supply public address and cluster name to deterministically
 // resolve an application.
-func ResolveFQDN(ctx context.Context, clt Getter, tunnel reversetunnel.Tunnel, clusterName string, fqdn string) (*services.App, services.Server, string, error) {
+func ResolveFQDN(ctx context.Context, clt Getter, tunnel reversetunnel.Tunnel, clusterName string, fqdn string) (*types.App, types.Server, string, error) {
 	// Parse the address to remove the port if it's set.
 	addr, err := utils.ParseAddr(fqdn)
 	if err != nil {

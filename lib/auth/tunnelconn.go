@@ -17,12 +17,10 @@ limitations under the License.
 package auth
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/api/types"
-	"github.com/gravitational/teleport/lib/utils"
 
 	"github.com/gravitational/trace"
 	"github.com/jonboulle/clockwork"
@@ -52,87 +50,4 @@ func TunnelConnectionStatus(clock clockwork.Clock, conn types.TunnelConnection, 
 		return teleport.RemoteClusterStatusOnline
 	}
 	return teleport.RemoteClusterStatusOffline
-}
-
-// TunnelConnectionSpecV2Schema is JSON schema for reverse tunnel spec
-const TunnelConnectionSpecV2Schema = `{
-	"type": "object",
-	"additionalProperties": false,
-	"required": ["cluster_name", "proxy_name", "last_heartbeat"],
-	"properties": {
-	  "cluster_name": {"type": "string"},
-	  "proxy_name": {"type": "string"},
-	  "last_heartbeat": {"type": "string"},
-	  "type": {"type": "string"}
-	}
-  }`
-
-// GetTunnelConnectionSchema returns role schema with optionally injected
-// schema for extensions
-func GetTunnelConnectionSchema() string {
-	return fmt.Sprintf(V2SchemaTemplate, MetadataSchema, TunnelConnectionSpecV2Schema, DefaultDefinitions)
-}
-
-// UnmarshalTunnelConnection unmarshals TunnelConnection resource from JSON or YAML,
-// sets defaults and checks the schema
-func UnmarshalTunnelConnection(data []byte, opts ...MarshalOption) (types.TunnelConnection, error) {
-	if len(data) == 0 {
-		return nil, trace.BadParameter("missing tunnel connection data")
-	}
-	cfg, err := CollectOptions(opts)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	var h types.ResourceHeader
-	err = utils.FastUnmarshal(data, &h)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	switch h.Version {
-	case types.V2:
-		var r types.TunnelConnectionV2
-
-		if cfg.SkipValidation {
-			if err := utils.FastUnmarshal(data, &r); err != nil {
-				return nil, trace.BadParameter(err.Error())
-			}
-		} else {
-			if err := utils.UnmarshalWithSchema(GetTunnelConnectionSchema(), &r, data); err != nil {
-				return nil, trace.BadParameter(err.Error())
-			}
-		}
-
-		if err := r.CheckAndSetDefaults(); err != nil {
-			return nil, trace.Wrap(err)
-		}
-		if cfg.ID != 0 {
-			r.SetResourceID(cfg.ID)
-		}
-		if !cfg.Expires.IsZero() {
-			r.SetExpiry(cfg.Expires)
-		}
-		return &r, nil
-	}
-	return nil, trace.BadParameter("reverse tunnel version %v is not supported", h.Version)
-}
-
-// MarshalTunnelConnection marshals the TunnelConnection resource to JSON.
-func MarshalTunnelConnection(rt types.TunnelConnection, opts ...MarshalOption) ([]byte, error) {
-	cfg, err := CollectOptions(opts)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	switch resource := rt.(type) {
-	case *types.TunnelConnectionV2:
-		if !cfg.PreserveResourceID {
-			// avoid modifying the original object
-			// to prevent unexpected data races
-			copy := *resource
-			copy.SetResourceID(0)
-			resource = &copy
-		}
-		return utils.FastMarshal(resource)
-	default:
-		return nil, trace.BadParameter("unrecognized resource version %T", rt)
-	}
 }

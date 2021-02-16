@@ -24,7 +24,7 @@ import (
 	"github.com/gravitational/kingpin"
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/asciitable"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
 	"github.com/gravitational/teleport/lib/service"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/trace"
@@ -45,7 +45,7 @@ func (c *StatusCommand) Initialize(app *kingpin.Application, config *service.Con
 }
 
 // TryRun takes the CLI command as an argument (like "nodes ls") and executes it.
-func (c *StatusCommand) TryRun(cmd string, client auth.ClientI) (match bool, err error) {
+func (c *StatusCommand) TryRun(cmd string, client client.ClientI) (match bool, err error) {
 	switch cmd {
 	case c.status.FullCommand():
 		err = c.Status(client)
@@ -56,7 +56,7 @@ func (c *StatusCommand) TryRun(cmd string, client auth.ClientI) (match bool, err
 }
 
 // Status is called to execute "status" CLI command.
-func (c *StatusCommand) Status(client auth.ClientI) error {
+func (c *StatusCommand) Status(client client.ClientI) error {
 	pingRsp, err := client.Ping(context.TODO())
 	if err != nil {
 		return trace.Wrap(err)

@@ -31,7 +31,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/sshutils"
 	"github.com/gravitational/teleport/lib/utils"
 
@@ -90,7 +90,7 @@ type LocalKeyStore interface {
 	GetKnownHostKeys(hostname string) ([]ssh.PublicKey, error)
 
 	// SaveCerts saves trusted TLS certificates of certificate authorities.
-	SaveCerts(proxy string, cas []auth.TrustedCerts) error
+	SaveCerts(proxy string, cas []server.TrustedCerts) error
 
 	// GetCerts gets trusted TLS certificates of certificate authorities.
 	GetCerts(proxy string) (*x509.CertPool, error)
@@ -318,7 +318,7 @@ func (fs *FSLocalKeyStore) GetKey(proxyHost, username string, opts ...KeyOption)
 		Cert:      cert,
 		ProxyHost: proxyHost,
 		TLSCert:   tlsCert,
-		TrustedCA: []auth.TrustedCerts{{
+		TrustedCA: []server.TrustedCerts{{
 			TLSCertificates: tlsCA,
 		}},
 		KubeTLSCerts: make(map[string][]byte),
@@ -451,7 +451,7 @@ func (o withDBCerts) deleteKey(dirPath, username string) error {
 }
 
 // SaveCerts saves trusted TLS certificates of certificate authorities
-func (fs *FSLocalKeyStore) SaveCerts(proxy string, cas []auth.TrustedCerts) error {
+func (fs *FSLocalKeyStore) SaveCerts(proxy string, cas []server.TrustedCerts) error {
 	dir, err := fs.dirFor(proxy, true)
 	if err != nil {
 		return trace.Wrap(err)

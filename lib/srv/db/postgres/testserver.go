@@ -30,6 +30,8 @@ import (
 
 	"github.com/gravitational/teleport/api/client/proto"
 	"github.com/gravitational/teleport/lib/auth"
+	authclient "github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/auth/testauthority"
 	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/services"
@@ -45,9 +47,9 @@ import (
 // TestClientConfig combines parameters for a test Postgres client.
 type TestClientConfig struct {
 	// AuthClient will be used to retrieve trusted CA.
-	AuthClient auth.ClientI
+	AuthClient authclient.ClientI
 	// AuthServer will be used to generate database access certificate for a user.
-	AuthServer *auth.Server
+	AuthServer *server.Server
 	// Address is the address to connect to (web proxy).
 	Address string
 	// Cluster is the Teleport cluster name.
@@ -73,7 +75,7 @@ func MakeTestClient(ctx context.Context, config TestClientConfig) (*pgconn.PgCon
 	}
 	// Generate client certificate for the Teleport user.
 	cert, err := config.AuthServer.GenerateDatabaseTestCert(
-		auth.DatabaseTestCertRequest{
+		server.DatabaseTestCertRequest{
 			PublicKey:       key.Pub,
 			Cluster:         config.Cluster,
 			Username:        config.Username,
@@ -93,7 +95,7 @@ func MakeTestClient(ctx context.Context, config TestClientConfig) (*pgconn.PgCon
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	pool, err := services.CertPool(ca)
+	pool, err := auth.CertPool(ca)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -111,7 +113,7 @@ func MakeTestClient(ctx context.Context, config TestClientConfig) (*pgconn.PgCon
 
 // MakeTestServer returns a new configured and unstarted test Postgres server
 // for the provided cluster client.
-func MakeTestServer(authClient *auth.Client, name, address string) (*TestServer, error) {
+func MakeTestServer(authClient *authclient.Client, name, address string) (*TestServer, error) {
 	privateKey, _, err := testauthority.New().GenerateKeyPair("")
 	if err != nil {
 		return nil, trace.Wrap(err)

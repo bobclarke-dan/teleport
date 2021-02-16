@@ -24,7 +24,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/secret"
 	"github.com/gravitational/teleport/lib/utils"
 
@@ -52,7 +52,7 @@ type Redirector struct {
 	// that redirectURL will be set later
 	shortPath string
 	// responseC is a channel to receive responses
-	responseC chan *auth.SSHLoginResponse
+	responseC chan *server.SSHLoginResponse
 	// errorC will contain errors
 	errorC chan error
 	// proxyClient is HTTP client to the Teleport Proxy
@@ -89,7 +89,7 @@ func NewRedirector(ctx context.Context, login SSHLoginSSO) (*Redirector, error) 
 		mux:         http.NewServeMux(),
 		key:         key,
 		shortPath:   "/" + uuid.New(),
-		responseC:   make(chan *auth.SSHLoginResponse, 1),
+		responseC:   make(chan *server.SSHLoginResponse, 1),
 		errorC:      make(chan error, 1),
 	}
 
@@ -174,7 +174,7 @@ func (rd *Redirector) ClickableURL() string {
 }
 
 // ResponseC returns a channel with response
-func (rd *Redirector) ResponseC() <-chan *auth.SSHLoginResponse {
+func (rd *Redirector) ResponseC() <-chan *server.SSHLoginResponse {
 	return rd.responseC
 }
 
@@ -185,7 +185,7 @@ func (rd *Redirector) ErrorC() <-chan error {
 
 // callback is used by Teleport proxy to send back credentials
 // issued by Teleport proxy
-func (rd *Redirector) callback(w http.ResponseWriter, r *http.Request) (*auth.SSHLoginResponse, error) {
+func (rd *Redirector) callback(w http.ResponseWriter, r *http.Request) (*server.SSHLoginResponse, error) {
 	if r.URL.Path != "/callback" {
 		return nil, trace.NotFound("path not found")
 	}
@@ -196,7 +196,7 @@ func (rd *Redirector) callback(w http.ResponseWriter, r *http.Request) (*auth.SS
 		return nil, trace.BadParameter("failed to decrypt response: in %v, err: %v", r.URL.String(), err)
 	}
 
-	var re *auth.SSHLoginResponse
+	var re *server.SSHLoginResponse
 	err = json.Unmarshal(plaintext, &re)
 	if err != nil {
 		return nil, trace.BadParameter("failed to decrypt response: in %v, err: %v", r.URL.String(), err)
@@ -216,7 +216,7 @@ func (rd *Redirector) Close() error {
 
 // wrapCallback is a helper wrapper method that wraps callback HTTP handler
 // and sends a result to the channel and redirect users to error page
-func (rd *Redirector) wrapCallback(fn func(http.ResponseWriter, *http.Request) (*auth.SSHLoginResponse, error)) http.Handler {
+func (rd *Redirector) wrapCallback(fn func(http.ResponseWriter, *http.Request) (*server.SSHLoginResponse, error)) http.Handler {
 	clone := *rd.proxyURL
 	clone.Path = "/web/msg/error/login_failed"
 	errorURL := clone.String()

@@ -25,28 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gravitational/teleport/lib/services"
+	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/utils"
 
 	"github.com/gravitational/trace"
+
 	"github.com/jonboulle/clockwork"
 )
-
-// ValidateServerMetadata checks that event server ID of the event
-// if present, matches the passed server ID and namespace has proper syntax
-func ValidateServerMetadata(event AuditEvent, serverID string) error {
-	getter, ok := event.(ServerMetadataGetter)
-	if !ok {
-		return nil
-	}
-	if getter.GetServerID() != serverID {
-		return trace.BadParameter("server %q can't emit event with server ID %q", serverID, getter.GetServerID())
-	}
-	if ns := getter.GetServerNamespace(); ns != "" && !services.IsValidNamespace(ns) {
-		return trace.BadParameter("invalid namespace %q", ns)
-	}
-	return nil
-}
 
 // UpdateEventFields updates passed event fields with additional information
 // common for all event types such as unique IDs, timestamps, codes, etc.
@@ -79,7 +64,7 @@ func ValidateEvent(f EventFields, serverID string) error {
 	if f.HasField(SessionServerID) && f.GetString(SessionServerID) != serverID {
 		return trace.BadParameter("server ID %v not valid", f.GetString(SessionServerID))
 	}
-	if f.HasField(EventNamespace) && !services.IsValidNamespace(f.GetString(EventNamespace)) {
+	if f.HasField(EventNamespace) && !types.IsValidNamespace(f.GetString(EventNamespace)) {
 		return trace.BadParameter("invalid namespace %v", f.GetString(EventNamespace))
 	}
 

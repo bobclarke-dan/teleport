@@ -25,21 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestAccessRequestMarshaling verifies that marshaling/unmarshaling access requests
-// works as expected (failures likely indicate a problem with json schema).
-func TestAccessRequestMarshaling(t *testing.T) {
-	req1, err := NewAccessRequest("some-user", "role-1", "role-2")
-	require.NoError(t, err)
-
-	marshaled, err := MarshalAccessRequest(req1)
-	require.NoError(t, err)
-
-	req2, err := UnmarshalAccessRequest(marshaled)
-	require.NoError(t, err)
-
-	require.True(t, req1.Equals(req2))
-}
-
 // TestPluginDataExpectations verifies the correct behavior of the `Expect` mapping.
 // Update operations which include an `Expect` mapping should not succeed unless
 // all expectations match (e.g. `{"foo":"bar","spam":""}` matches the state where

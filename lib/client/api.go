@@ -48,6 +48,9 @@ import (
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/api/types/wrappers"
 	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/auth/client"
+	"github.com/gravitational/teleport/lib/auth/resource"
+	"github.com/gravitational/teleport/lib/auth/server"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
 	"github.com/gravitational/teleport/lib/modules"
@@ -353,7 +356,7 @@ type ProfileStatus struct {
 
 	// ActiveRequests tracks the privilege escalation requests applied
 	// during certificate construction.
-	ActiveRequests services.RequestIDs
+	ActiveRequests auth.RequestIDs
 }
 
 // IsExpired returns true if profile is not expired yet
@@ -476,7 +479,7 @@ func readProfile(profileDir string, profileName string) (*ProfileStatus, error) 
 	var roles []string
 	rawRoles, ok := sshCert.Extensions[teleport.CertExtensionTeleportRoles]
 	if ok {
-		roles, err = services.UnmarshalCertRoles(rawRoles)
+		roles, err = resource.UnmarshalCertRoles(rawRoles)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -494,7 +497,7 @@ func readProfile(profileDir string, profileName string) (*ProfileStatus, error) 
 		}
 	}
 
-	var activeRequests services.RequestIDs
+	var activeRequests auth.RequestIDs
 	rawRequests, ok := sshCert.Extensions[teleport.CertExtensionTeleportActiveRequests]
 	if ok {
 		if err := activeRequests.Unmarshal([]byte(rawRequests)); err != nil {
@@ -1090,7 +1093,7 @@ func (tc *TeleportClient) NewWatcher(ctx context.Context, watch services.Watch) 
 
 // WithRootClusterClient provides a functional interface for making calls against the root cluster's
 // auth server.
-func (tc *TeleportClient) WithRootClusterClient(ctx context.Context, do func(clt auth.ClientI) error) error {
+func (tc *TeleportClient) WithRootClusterClient(ctx context.Context, do func(clt client.ClientI) error) error {
 	proxyClient, err := tc.ConnectToProxy(ctx)
 	if err != nil {
 		return trace.Wrap(err)
@@ -1213,7 +1216,7 @@ func (tc *TeleportClient) startPortForwarding(ctx context.Context, nodeClient *N
 // Join connects to the existing/active SSH session
 func (tc *TeleportClient) Join(ctx context.Context, namespace string, sessionID session.ID, input io.Reader) (err error) {
 	if namespace == "" {
-		return trace.BadParameter(auth.MissingNamespaceError)
+		return trace.BadParameter(client.MissingNamespaceError)
 	}
 	tc.Stdin = input
 	if sessionID.Check() != nil {
@@ -1258,7 +1261,7 @@ func (tc *TeleportClient) Join(ctx context.Context, namespace string, sessionID 
 	serverID := session.Parties[0].ServerID
 
 	// find a server address by its ID
-	nodes, err := site.GetNodes(namespace, services.SkipValidation())
+	nodes, err := site.GetNodes(namespace, resource.SkipValidation())
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -1298,7 +1301,7 @@ func (tc *TeleportClient) Join(ctx context.Context, namespace string, sessionID 
 // Play replays the recorded session
 func (tc *TeleportClient) Play(ctx context.Context, namespace, sessionID string) (err error) {
 	if namespace == "" {
-		return trace.BadParameter(auth.MissingNamespaceError)
+		return trace.BadParameter(client.MissingNamespaceError)
 	}
 	sid, err := session.ParseID(sessionID)
 	if err != nil {
@@ -1902,7 +1905,7 @@ func (tc *TeleportClient) Login(ctx context.Context) (*Key, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	var response *auth.SSHLoginResponse
+	var response *server.SSHLoginResponse
 
 	switch pr.Auth.Type {
 	case teleport.Local:
@@ -2058,7 +2061,7 @@ type certGetter interface {
 }
 
 // updateClusterName returns the name of the cluster the user is connected to.
-func updateClusterName(ctx context.Context, certGetter certGetter, clusterName string, certificates []auth.TrustedCerts) (string, error) {
+func updateClusterName(ctx context.Context, certGetter certGetter, clusterName string, certificates []server.TrustedCerts) (string, error) {
 	// Extract the name of the cluster the caller actually connected to.
 	if len(certificates) == 0 {
 		return "", trace.BadParameter("missing host certificates")
@@ -2120,7 +2123,7 @@ func (tc *TeleportClient) UpdateTrustedCA(ctx context.Context, clusterName strin
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	trustedCerts := auth.AuthoritiesToTrustedCerts(hostCerts)
+	trustedCerts := server.AuthoritiesToTrustedCerts(hostCerts)
 
 	// Update the ~/.tsh/known_hosts file to include all the CA the cluster
 	// knows about.
@@ -2238,9 +2241,9 @@ func (tc *TeleportClient) applyProxySettings(proxySettings ProxySettings) error 
 	return nil
 }
 
-func (tc *TeleportClient) localLogin(ctx context.Context, secondFactor string, pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) localLogin(ctx context.Context, secondFactor string, pub []byte) (*server.SSHLoginResponse, error) {
 	var err error
-	var response *auth.SSHLoginResponse
+	var response *server.SSHLoginResponse
 
 	switch secondFactor {
 	case teleport.OFF, teleport.OTP, teleport.TOTP, teleport.HOTP:
@@ -2265,7 +2268,7 @@ func (tc *TeleportClient) AddTrustedCA(ca services.CertAuthority) error {
 	if tc.localAgent == nil {
 		return trace.BadParameter("TeleportClient.AddTrustedCA called on a client without localAgent")
 	}
-	err := tc.localAgent.AddHostSignersToCache(auth.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
+	err := tc.localAgent.AddHostSignersToCache(server.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -2273,7 +2276,7 @@ func (tc *TeleportClient) AddTrustedCA(ca services.CertAuthority) error {
 	// only host CA has TLS certificates, user CA will overwrite trusted certs
 	// to empty file if called
 	if ca.GetType() == services.HostCA {
-		err = tc.localAgent.SaveCerts(auth.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
+		err = tc.localAgent.SaveCerts(server.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -2291,7 +2294,7 @@ func (tc *TeleportClient) AddKey(host string, key *Key) (*agent.AddedKey, error)
 }
 
 // directLogin asks for a password + HOTP token, makes a request to CA via proxy
-func (tc *TeleportClient) directLogin(ctx context.Context, secondFactorType string, pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) directLogin(ctx context.Context, secondFactorType string, pub []byte) (*server.SSHLoginResponse, error) {
 	var err error
 
 	var password string
@@ -2331,10 +2334,10 @@ func (tc *TeleportClient) directLogin(ctx context.Context, secondFactorType stri
 }
 
 // SSOLoginFunc is a function used in tests to mock SSO logins.
-type SSOLoginFunc func(ctx context.Context, connectorID string, pub []byte, protocol string) (*auth.SSHLoginResponse, error)
+type SSOLoginFunc func(ctx context.Context, connectorID string, pub []byte, protocol string) (*server.SSHLoginResponse, error)
 
 // samlLogin opens browser window and uses OIDC or SAML redirect cycle with browser
-func (tc *TeleportClient) ssoLogin(ctx context.Context, connectorID string, pub []byte, protocol string) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) ssoLogin(ctx context.Context, connectorID string, pub []byte, protocol string) (*server.SSHLoginResponse, error) {
 	if tc.MockSSOLogin != nil {
 		// sso login response is being mocked for testing purposes
 		return tc.MockSSOLogin(ctx, connectorID, pub, protocol)
@@ -2360,7 +2363,7 @@ func (tc *TeleportClient) ssoLogin(ctx context.Context, connectorID string, pub 
 }
 
 // directLogin asks for a password and performs the challenge-response authentication
-func (tc *TeleportClient) u2fLogin(ctx context.Context, pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) u2fLogin(ctx context.Context, pub []byte) (*server.SSHLoginResponse, error) {
 	password, err := tc.AskPassword()
 	if err != nil {
 		return nil, trace.Wrap(err)
